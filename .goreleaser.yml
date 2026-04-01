@@ -22,6 +22,19 @@ archives:
       - goos: windows
         format: zip
 
+nfpms:
+  - id: gocode
+    package_name: gocode
+    vendor: AlleyBo55
+    homepage: https://github.com/AlleyBo55/gocode
+    maintainer: AlleyBo55
+    description: High-performance AI agent harness runtime in Go
+    license: MIT
+    formats:
+      - deb
+      - rpm
+    bindir: /usr/local/bin
+
 checksum:
   name_template: "checksums.txt"
 
@@ -35,10 +48,19 @@ changelog:
 
 brews:
   - repository:
-      owner: gocode
-      name: homebrew-tap
-    homepage: "https://github.com/AlleyBo55/gocode"
-    description: "Agent harness runtime — a Go port of Claude Code"
-    license: "MIT"
+      owner: AlleyBo55
+      name: homebrew-gocode
+    homepage: https://github.com/AlleyBo55/gocode
+    description: High-performance AI agent harness runtime in Go
+    license: MIT
     install: |
       bin.install "gocode"
+
+chocolateys:
+  - name: gocode
+    owners: AlleyBo55
+    authors: AlleyBo55
+    project_url: https://github.com/AlleyBo55/gocode
+    license_url: https://github.com/AlleyBo55/gocode/blob/master/LICENSE
+    description: High-performance AI agent harness runtime in Go
+    tags: "golang ai agent mcp cli developer-tools"

@@ -173,28 +173,45 @@ graph TB
 
 ### Install
 
-Pick your favorite way:
+Pick your platform:
 
 ```bash
-# One-liner (macOS / Linux) - just like Claude Code
-curl -fsSL https://raw.githubusercontent.com/gocode/gocode/main/install.sh | bash
+# macOS (Homebrew)
+brew install AlleyBo55/gocode/gocode
 ```
 
 ```bash
-# Homebrew
-brew install gocode/tap/gocode
+# Linux (Debian/Ubuntu)
+curl -fsSL https://github.com/AlleyBo55/gocode/releases/latest/download/gocode_linux_amd64.deb -o gocode.deb
+sudo dpkg -i gocode.deb
 ```
 
 ```bash
-# Go install (if you have Go 1.21+)
+# Linux (RPM/Fedora/RHEL)
+curl -fsSL https://github.com/AlleyBo55/gocode/releases/latest/download/gocode_linux_amd64.rpm -o gocode.rpm
+sudo rpm -i gocode.rpm
+```
+
+```bash
+# Windows (Chocolatey)
+choco install gocode
+```
+
+```bash
+# Any OS - one-liner shell script
+curl -fsSL https://raw.githubusercontent.com/AlleyBo55/gocode/master/install.sh | bash
+```
+
+```bash
+# Any OS with Go 1.21+
 go install github.com/AlleyBo55/gocode/cmd/gocode@latest
 ```
 
 ```bash
-# Or build from source
+# Build from source
 git clone https://github.com/AlleyBo55/gocode.git
 cd gocode
-make install   # installs to $GOPATH/bin
+make install
 ```
 
 That's it. Type `gocode` anywhere.
