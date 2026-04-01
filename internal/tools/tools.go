@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/gocode/gocode/internal/models"
-	"github.com/gocode/gocode/internal/permissions"
+	"github.com/AlleyBo55/gocode/internal/models"
+	"github.com/AlleyBo55/gocode/internal/permissions"
 )
 
 // ErrToolNotFound is returned when a tool lookup fails.

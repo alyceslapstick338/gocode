@@ -9,9 +9,9 @@ import (
 	"os"
 	"strings"
 
-	"github.com/gocode/gocode/internal/commands"
-	"github.com/gocode/gocode/internal/execution"
-	"github.com/gocode/gocode/internal/tools"
+	"github.com/AlleyBo55/gocode/internal/commands"
+	"github.com/AlleyBo55/gocode/internal/execution"
+	"github.com/AlleyBo55/gocode/internal/tools"
 )
 
 // MCPRequest represents a JSON-RPC request in the MCP protocol.

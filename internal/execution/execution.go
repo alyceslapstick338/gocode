@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/gocode/gocode/internal/commands"
-	"github.com/gocode/gocode/internal/tools"
+	"github.com/AlleyBo55/gocode/internal/commands"
+	"github.com/AlleyBo55/gocode/internal/tools"
 )
 
 // ErrExecutableNotFound is returned when a lookup fails.

@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/gocode/gocode/internal/models"
+	"github.com/AlleyBo55/gocode/internal/models"
 )
 
 // ErrCommandNotFound is returned when a command lookup fails.

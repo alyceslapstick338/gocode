@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/gocode/gocode/internal/models"
-	"github.com/gocode/gocode/internal/permissions"
-	"github.com/gocode/gocode/internal/tools"
+	"github.com/AlleyBo55/gocode/internal/models"
+	"github.com/AlleyBo55/gocode/internal/permissions"
+	"github.com/AlleyBo55/gocode/internal/tools"
 )
 
 // ToolPool holds the assembled set of tools available for a session,

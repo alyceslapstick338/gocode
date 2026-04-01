@@ -7,7 +7,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/gocode/gocode/internal/models"
+	"github.com/AlleyBo55/gocode/internal/models"
 )
 
 // PortManifest holds the result of scanning a source directory.

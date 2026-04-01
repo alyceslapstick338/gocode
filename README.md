@@ -20,7 +20,7 @@
 </p>
 
 <p align="center">
-  <code>go install github.com/gocode/gocode/cmd/gocode@latest</code>
+  <code>go install github.com/AlleyBo55/gocode/cmd/gocode@latest</code>
 </p>
 
 ---
@@ -187,12 +187,12 @@ brew install gocode/tap/gocode
 
 ```bash
 # Go install (if you have Go 1.21+)
-go install github.com/gocode/gocode/cmd/gocode@latest
+go install github.com/AlleyBo55/gocode/cmd/gocode@latest
 ```
 
 ```bash
 # Or build from source
-git clone https://github.com/gocode/gocode.git
+git clone https://github.com/AlleyBo55/gocode.git
 cd gocode
 make install   # installs to $GOPATH/bin
 ```

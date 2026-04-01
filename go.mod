@@ -1,4 +1,4 @@
-module github.com/gocode/gocode
+module github.com/AlleyBo55/gocode
 
 go 1.21.13
 

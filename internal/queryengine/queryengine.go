@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/gocode/gocode/internal/manifest"
-	"github.com/gocode/gocode/internal/models"
-	"github.com/gocode/gocode/internal/session"
-	"github.com/gocode/gocode/internal/transcript"
+	"github.com/AlleyBo55/gocode/internal/manifest"
+	"github.com/AlleyBo55/gocode/internal/models"
+	"github.com/AlleyBo55/gocode/internal/session"
+	"github.com/AlleyBo55/gocode/internal/transcript"
 	"github.com/google/uuid"
 )
 

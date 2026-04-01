@@ -37,7 +37,7 @@ brews:
   - repository:
       owner: gocode
       name: homebrew-tap
-    homepage: "https://github.com/gocode/gocode"
+    homepage: "https://github.com/AlleyBo55/gocode"
     description: "Agent harness runtime — a Go port of Claude Code"
     license: "MIT"
     install: |
