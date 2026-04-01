@@ -122,7 +122,8 @@ We ported all of that to Go. Then we made it better.
 go install github.com/AlleyBo55/gocode/cmd/gocode@latest
 
 # macOS (Homebrew)
-brew install AlleyBo55/gocode/gocode
+brew tap AlleyBo55/gocode https://github.com/AlleyBo55/gocode.git --branch homebrew
+brew install gocode
 
 # One-line install script
 curl -fsSL https://raw.githubusercontent.com/AlleyBo55/gocode/master/install.sh | bash
