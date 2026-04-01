@@ -250,15 +250,44 @@ gocode mcp-serve --transport stdio
 ```
 
 
-### Use as an MCP Server with Kiro
+### Use as an MCP Server
 
-Add this to your `.kiro/settings/mcp.json`:
+gocode speaks MCP (Model Context Protocol) over stdio and HTTP. This means it works with any MCP-compatible client.
+
+#### Kiro CLI
+
+```bash
+# Add gocode as an MCP server to Kiro CLI
+kiro-cli mcp add \
+  --name "gocode" \
+  --scope global \
+  --command "gocode" \
+  --args "mcp-serve --transport stdio"
+```
+
+Or add it manually to `~/.kiro/settings/mcp.json`:
 
 ```json
 {
   "mcpServers": {
     "gocode": {
-      "command": "./bin/gocode",
+      "command": "gocode",
+      "args": ["mcp-serve", "--transport", "stdio"],
+      "disabled": false
+    }
+  }
+}
+```
+
+#### Kiro IDE
+
+Add to your workspace `.kiro/settings/mcp.json`:
+
+```json
+{
+  "mcpServers": {
+    "gocode": {
+      "command": "gocode",
       "args": ["mcp-serve", "--transport", "stdio"],
       "disabled": false,
       "autoApprove": ["tools/list", "commands/list"]
@@ -267,7 +296,44 @@ Add this to your `.kiro/settings/mcp.json`:
 }
 ```
 
-Now Kiro can call your tools and commands through the MCP protocol. List tools, execute them, route prompts - all from within your IDE.
+#### Cursor
+
+Add to `.cursor/mcp.json` in your project root:
+
+```json
+{
+  "mcpServers": {
+    "gocode": {
+      "command": "gocode",
+      "args": ["mcp-serve", "--transport", "stdio"]
+    }
+  }
+}
+```
+
+#### Claude Desktop
+
+Add to `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS) or `%APPDATA%\Claude\claude_desktop_config.json` (Windows):
+
+```json
+{
+  "mcpServers": {
+    "gocode": {
+      "command": "gocode",
+      "args": ["mcp-serve", "--transport", "stdio"]
+    }
+  }
+}
+```
+
+#### Any MCP client (HTTP)
+
+```bash
+# Start gocode as an HTTP MCP server
+gocode mcp-serve --transport http --addr :8080
+
+# Then point your client to http://localhost:8080/mcp
+```
 
 ---
 
@@ -312,14 +378,22 @@ Now Kiro can call your tools and commands through the MCP protocol. List tools, 
 
 ---
 
-## Kiro Integration
+## IDE and CLI Integration
 
-gocode is a first-class Kiro citizen:
+gocode works with any tool that supports MCP:
 
-- **MCP Server** - Expose tools and commands over the Model Context Protocol. Works with stdio (for Kiro) and HTTP (for everything else).
-- **Hooks** - Read and execute Kiro hook definitions from `.kiro/hooks/`. Trigger actions on file changes, prompt submissions, tool usage.
-- **Steering Files** - Generate Kiro-compatible steering files from runtime configuration and session state. Auto-include or conditionally match.
-- **Spec Workflows** - Read spec files from `.kiro/specs/` directories. Integrate with Kiro's spec-driven development workflow.
+| Client | Config Location | Transport |
+|--------|----------------|-----------|
+| **Kiro CLI** | `~/.kiro/settings/mcp.json` or `kiro-cli mcp add` | stdio |
+| **Kiro IDE** | `.kiro/settings/mcp.json` | stdio |
+| **Cursor** | `.cursor/mcp.json` | stdio |
+| **Claude Desktop** | `claude_desktop_config.json` | stdio |
+| **Any HTTP client** | `gocode mcp-serve --transport http --addr :8080` | HTTP |
+
+Kiro-specific features:
+- **Hooks** - reads hook definitions from `.kiro/hooks/`
+- **Steering Files** - generates Kiro-compatible steering files from runtime state
+- **Spec Workflows** - reads spec files from `.kiro/specs/`
 
 ---
 
