@@ -11,29 +11,41 @@ import (
 	"github.com/AlleyBo55/gocode/internal/apitypes"
 )
 
+// REPLConfig holds configuration for the REPL display.
+type REPLConfig struct {
+	Version  string
+	Model    string
+	MaxTurns int
+}
+
 // REPL provides the interactive terminal chat interface.
 type REPL struct {
 	runtime *agent.ConversationRuntime
 	reader  io.Reader
 	writer  io.Writer
 	display *Display
+	config  REPLConfig
 }
 
 // NewREPL creates a new REPL.
-func NewREPL(rt *agent.ConversationRuntime, r io.Reader, w io.Writer) *REPL {
+func NewREPL(rt *agent.ConversationRuntime, r io.Reader, w io.Writer, cfg REPLConfig) *REPL {
 	return &REPL{
 		runtime: rt,
 		reader:  r,
 		writer:  w,
 		display: NewDisplay(w),
+		config:  cfg,
 	}
 }
 
 // Run starts the interactive REPL loop.
 func (r *REPL) Run(ctx context.Context) error {
 	scanner := bufio.NewScanner(r.reader)
-	fmt.Fprintln(r.writer, "gocode agent — type /exit to quit, /clear to reset, /cost for usage")
-	fmt.Fprintln(r.writer)
+	PrintBanner(r.writer, BannerConfig{
+		Version:  r.config.Version,
+		Model:    r.config.Model,
+		MaxTurns: r.config.MaxTurns,
+	})
 
 	for {
 		fmt.Fprint(r.writer, "you> ")
