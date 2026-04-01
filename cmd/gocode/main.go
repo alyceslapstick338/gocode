@@ -448,7 +448,11 @@ func main() {
 				Prompter:      prompter,
 			})
 
-			r := repl.NewREPL(runtime, os.Stdin, os.Stdout)
+			r := repl.NewREPL(runtime, os.Stdin, os.Stdout, repl.REPLConfig{
+				Version:  version,
+				Model:    resolvedModel,
+				MaxTurns: maxTurns,
+			})
 			return r.Run(context.Background())
 		},
 	}
