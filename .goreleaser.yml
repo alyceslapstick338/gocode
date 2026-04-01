@@ -16,11 +16,13 @@ builds:
       - arm64
 
 archives:
-  - format: tar.gz
+  - formats:
+      - tar.gz
     name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
     format_overrides:
       - goos: windows
-        format: zip
+        formats:
+          - zip
 
 nfpms:
   - id: gocode
@@ -55,12 +57,3 @@ brews:
     license: MIT
     install: |
       bin.install "gocode"
-
-chocolateys:
-  - name: gocode
-    owners: AlleyBo55
-    authors: AlleyBo55
-    project_url: https://github.com/AlleyBo55/gocode
-    license_url: https://github.com/AlleyBo55/gocode/blob/master/LICENSE
-    description: High-performance AI agent harness runtime in Go
-    tags: "golang ai agent mcp cli developer-tools"
