@@ -36,19 +36,36 @@ type ToolLookup interface {
 	GetTools(simpleMode, includeMCP bool, pc permissions.PermissionChecker) []models.PortingModule
 	ExecuteTool(name, payload string) ToolExecution
 	RenderIndex(limit int, query string) string
+	GetToolDefinitions() []models.ToolDefinition
 }
 
-// ToolRegistry implements ToolLookup by loading tools from JSON.
-type ToolRegistry struct {
-	tools []models.PortingModule
-	index map[string]*models.PortingModule
+// schemaPropertyJSON matches a JSON Schema property definition.
+type schemaPropertyJSON struct {
+	Type        string `json:"type"`
+	Description string `json:"description,omitempty"`
+}
+
+// inputSchemaJSON matches the input_schema field in tools.json.
+type inputSchemaJSON struct {
+	Type       string                        `json:"type"`
+	Properties map[string]schemaPropertyJSON `json:"properties,omitempty"`
+	Required   []string                      `json:"required,omitempty"`
 }
 
 // toolJSON matches the JSON shape in tools.json.
 type toolJSON struct {
-	Name           string `json:"name"`
-	Responsibility string `json:"responsibility"`
-	SourceHint     string `json:"source_hint"`
+	Name           string          `json:"name"`
+	Responsibility string          `json:"responsibility"`
+	Description    string          `json:"description"`
+	SourceHint     string          `json:"source_hint"`
+	InputSchema    inputSchemaJSON `json:"input_schema"`
+}
+
+// ToolRegistry implements ToolLookup by loading tools from JSON.
+type ToolRegistry struct {
+	tools       []models.PortingModule
+	index       map[string]*models.PortingModule
+	definitions []models.ToolDefinition
 }
 
 // NewToolRegistry parses a JSON array of tool objects into a ToolRegistry.
@@ -58,23 +75,55 @@ func NewToolRegistry(jsonData []byte) (*ToolRegistry, error) {
 		return nil, fmt.Errorf("parsing tools JSON: %w", err)
 	}
 
-	tools := make([]models.PortingModule, len(raw))
+	toolMods := make([]models.PortingModule, len(raw))
 	idx := make(map[string]*models.PortingModule, len(raw))
+	defs := make([]models.ToolDefinition, len(raw))
 
 	for i, r := range raw {
-		tools[i] = models.PortingModule{
+		toolMods[i] = models.PortingModule{
 			Name:           r.Name,
 			Responsibility: r.Responsibility,
+			Description:    r.Description,
 			SourceHint:     r.SourceHint,
 			Status:         "mirrored",
 		}
-		idx[strings.ToLower(tools[i].Name)] = &tools[i]
+		idx[strings.ToLower(toolMods[i].Name)] = &toolMods[i]
+
+		// Build MCP-compliant ToolDefinition
+		props := make(map[string]models.SchemaProperty, len(r.InputSchema.Properties))
+		for k, v := range r.InputSchema.Properties {
+			props[k] = models.SchemaProperty{
+				Type:        v.Type,
+				Description: v.Description,
+			}
+		}
+		desc := r.Description
+		if desc == "" {
+			desc = r.Responsibility
+		}
+		defs[i] = models.ToolDefinition{
+			Name:        r.Name,
+			Description: desc,
+			InputSchema: models.InputSchema{
+				Type:       r.InputSchema.Type,
+				Properties: props,
+				Required:   r.InputSchema.Required,
+			},
+		}
 	}
 
 	return &ToolRegistry{
-		tools: tools,
-		index: idx,
+		tools:       toolMods,
+		index:       idx,
+		definitions: defs,
 	}, nil
+}
+
+// GetToolDefinitions returns MCP-compliant tool definitions for tools/list.
+func (tr *ToolRegistry) GetToolDefinitions() []models.ToolDefinition {
+	result := make([]models.ToolDefinition, len(tr.definitions))
+	copy(result, tr.definitions)
+	return result
 }
 
 // GetTool returns the tool matching name (case-insensitive), or ErrToolNotFound.
@@ -115,30 +164,24 @@ func (tr *ToolRegistry) FindTools(query string, limit int) []models.PortingModul
 }
 
 // GetTools returns tools filtered by mode flags and permission checker.
-// simpleMode: only include BashTool, FileReadTool, FileEditTool.
-// includeMCP: if false, exclude tools with "mcp" in name or source_hint.
-// pc: if non-nil, exclude tools blocked by the PermissionChecker.
 func (tr *ToolRegistry) GetTools(simpleMode, includeMCP bool, pc permissions.PermissionChecker) []models.PortingModule {
 	var results []models.PortingModule
 	for _, tool := range tr.tools {
 		nameLower := strings.ToLower(tool.Name)
 		hintLower := strings.ToLower(tool.SourceHint)
 
-		// simpleMode filter: only allow the three simple tools
 		if simpleMode {
 			if _, ok := simpleToolNames[nameLower]; !ok {
 				continue
 			}
 		}
 
-		// includeMCP filter: exclude MCP tools when false
 		if !includeMCP {
 			if strings.Contains(nameLower, "mcp") || strings.Contains(hintLower, "mcp") {
 				continue
 			}
 		}
 
-		// permission filter: exclude blocked tools
 		if pc != nil && pc.IsBlocked(tool.Name) {
 			continue
 		}
@@ -181,8 +224,6 @@ func (tr *ToolRegistry) ExecuteTool(name, payload string) ToolExecution {
 }
 
 // RenderIndex returns a Markdown-formatted tool index.
-// If query is non-empty, only matching tools are shown.
-// limit controls the max number of entries (0 = unlimited).
 func (tr *ToolRegistry) RenderIndex(limit int, query string) string {
 	tools := tr.FindTools(query, limit)
 

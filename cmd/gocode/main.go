@@ -20,6 +20,7 @@ import (
 	"github.com/AlleyBo55/gocode/internal/runtime"
 	"github.com/AlleyBo55/gocode/internal/session"
 	"github.com/AlleyBo55/gocode/internal/setup"
+	"github.com/AlleyBo55/gocode/internal/toolimpl"
 	"github.com/AlleyBo55/gocode/internal/toolpool"
 	"github.com/AlleyBo55/gocode/internal/tools"
 )
@@ -411,12 +412,14 @@ func main() {
 	// 21. mcp-serve
 	mcpServeCmd := &cobra.Command{
 		Use:   "mcp-serve",
-		Short: "Start MCP server",
+		Short: "Start MCP server (MCP protocol compliant)",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			transport, _ := cmd.Flags().GetString("transport")
 			addr, _ := cmd.Flags().GetString("addr")
 
-			server := mcp.NewMCPServer(execReg, cmdReg, toolReg)
+			// Create the real tool implementation registry
+			toolImpl := toolimpl.NewRegistry()
+			server := mcp.NewMCPServer(toolReg, toolImpl, cmdReg, rt, sessionStore, version)
 
 			switch transport {
 			case "stdio":

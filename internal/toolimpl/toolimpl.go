@@ -1,0 +1,493 @@
+package toolimpl
+
+import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"fmt"
+	"io/fs"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"strconv"
+	"strings"
+	"time"
+)
+
+// ToolResult is the outcome of executing a tool.
+type ToolResult struct {
+	Success bool   `json:"success"`
+	Output  string `json:"output"`
+	Error   string `json:"error,omitempty"`
+}
+
+// ToolExecutor is implemented by all concrete tool implementations.
+type ToolExecutor interface {
+	Execute(params map[string]interface{}) ToolResult
+}
+
+// Registry maps tool names to their implementations.
+type Registry struct {
+	executors map[string]ToolExecutor
+}
+
+// NewRegistry creates a Registry with all built-in tool implementations.
+func NewRegistry() *Registry {
+	r := &Registry{executors: make(map[string]ToolExecutor)}
+	r.executors["bashtool"] = &BashTool{}
+	r.executors["filereadtool"] = &FileReadTool{}
+	r.executors["fileedittool"] = &FileEditTool{}
+	r.executors["filewritetool"] = &FileWriteTool{}
+	r.executors["globtool"] = &GlobTool{}
+	r.executors["greptool"] = &GrepTool{}
+	r.executors["listdirectorytool"] = &ListDirectoryTool{}
+	return r
+}
+
+// Get returns the executor for the given tool name (case-insensitive), or nil.
+func (r *Registry) Get(name string) ToolExecutor {
+	return r.executors[strings.ToLower(name)]
+}
+
+// ExecuteTool parses a JSON payload string and dispatches to the named tool.
+func (r *Registry) ExecuteTool(name, payload string) ToolResult {
+	executor := r.Get(name)
+	if executor == nil {
+		return ToolResult{Success: false, Error: fmt.Sprintf("tool not implemented: %s", name)}
+	}
+	var params map[string]interface{}
+	if payload != "" {
+		if err := json.Unmarshal([]byte(payload), &params); err != nil {
+			return ToolResult{Success: false, Error: fmt.Sprintf("invalid JSON params: %v", err)}
+		}
+	}
+	if params == nil {
+		params = make(map[string]interface{})
+	}
+	return executor.Execute(params)
+}
+
+// --- BashTool ---
+
+// BashTool executes shell commands.
+type BashTool struct{}
+
+func (t *BashTool) Execute(params map[string]interface{}) ToolResult {
+	command, _ := params["command"].(string)
+	if command == "" {
+		return ToolResult{Success: false, Error: "missing required param: command"}
+	}
+
+	timeoutMs := 30000
+	if v, ok := params["timeout_ms"]; ok {
+		switch tv := v.(type) {
+		case float64:
+			timeoutMs = int(tv)
+		case json.Number:
+			if n, err := tv.Int64(); err == nil {
+				timeoutMs = int(n)
+			}
+		}
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(timeoutMs)*time.Millisecond)
+	defer cancel()
+
+	cmd := exec.CommandContext(ctx, "sh", "-c", command)
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+
+	err := cmd.Run()
+
+	var sb strings.Builder
+	if stdout.Len() > 0 {
+		sb.WriteString(stdout.String())
+	}
+	if stderr.Len() > 0 {
+		if sb.Len() > 0 {
+			sb.WriteString("\n")
+		}
+		sb.WriteString("STDERR:\n")
+		sb.WriteString(stderr.String())
+	}
+
+	if err != nil {
+		exitCode := -1
+		if exitErr, ok := err.(*exec.ExitError); ok {
+			exitCode = exitErr.ExitCode()
+		}
+		if ctx.Err() == context.DeadlineExceeded {
+			return ToolResult{
+				Success: false,
+				Output:  sb.String(),
+				Error:   fmt.Sprintf("command timed out after %dms", timeoutMs),
+			}
+		}
+		return ToolResult{
+			Success: false,
+			Output:  sb.String(),
+			Error:   fmt.Sprintf("exit code %d: %v", exitCode, err),
+		}
+	}
+
+	return ToolResult{Success: true, Output: sb.String()}
+}
+
+// --- FileReadTool ---
+
+// FileReadTool reads file contents with optional line range.
+type FileReadTool struct{}
+
+func (t *FileReadTool) Execute(params map[string]interface{}) ToolResult {
+	path, _ := params["path"].(string)
+	if path == "" {
+		return ToolResult{Success: false, Error: "missing required param: path"}
+	}
+
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return ToolResult{Success: false, Error: fmt.Sprintf("reading file: %v", err)}
+	}
+
+	lines := strings.Split(string(data), "\n")
+
+	startLine := 0
+	endLine := len(lines)
+
+	if v, ok := params["start_line"]; ok {
+		if n, err := toInt(v); err == nil && n > 0 {
+			startLine = n - 1 // convert 1-indexed to 0-indexed
+		}
+	}
+	if v, ok := params["end_line"]; ok {
+		if n, err := toInt(v); err == nil && n > 0 {
+			endLine = n // 1-indexed inclusive → 0-indexed exclusive
+		}
+	}
+
+	if startLine < 0 {
+		startLine = 0
+	}
+	if endLine > len(lines) {
+		endLine = len(lines)
+	}
+	if startLine >= endLine {
+		return ToolResult{Success: true, Output: ""}
+	}
+
+	// Add line numbers
+	var sb strings.Builder
+	for i := startLine; i < endLine; i++ {
+		sb.WriteString(fmt.Sprintf("%d: %s\n", i+1, lines[i]))
+	}
+	return ToolResult{Success: true, Output: sb.String()}
+}
+
+// --- FileEditTool ---
+
+// FileEditTool edits files via exact string replacement.
+type FileEditTool struct{}
+
+func (t *FileEditTool) Execute(params map[string]interface{}) ToolResult {
+	path, _ := params["path"].(string)
+	oldText, _ := params["old_text"].(string)
+	newText, _ := params["new_text"].(string)
+
+	if path == "" || oldText == "" {
+		return ToolResult{Success: false, Error: "missing required params: path, old_text"}
+	}
+
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return ToolResult{Success: false, Error: fmt.Sprintf("reading file: %v", err)}
+	}
+
+	content := string(data)
+	count := strings.Count(content, oldText)
+	if count == 0 {
+		return ToolResult{Success: false, Error: "old_text not found in file"}
+	}
+	if count > 1 {
+		return ToolResult{Success: false, Error: fmt.Sprintf("old_text found %d times; must be unique", count)}
+	}
+
+	newContent := strings.Replace(content, oldText, newText, 1)
+	if err := os.WriteFile(path, []byte(newContent), 0o644); err != nil {
+		return ToolResult{Success: false, Error: fmt.Sprintf("writing file: %v", err)}
+	}
+
+	return ToolResult{Success: true, Output: fmt.Sprintf("Edited %s: replaced 1 occurrence", path)}
+}
+
+// --- FileWriteTool ---
+
+// FileWriteTool creates or overwrites files.
+type FileWriteTool struct{}
+
+func (t *FileWriteTool) Execute(params map[string]interface{}) ToolResult {
+	path, _ := params["path"].(string)
+	content, _ := params["content"].(string)
+
+	if path == "" {
+		return ToolResult{Success: false, Error: "missing required param: path"}
+	}
+
+	// Create parent directories
+	dir := filepath.Dir(path)
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return ToolResult{Success: false, Error: fmt.Sprintf("creating directories: %v", err)}
+	}
+
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+		return ToolResult{Success: false, Error: fmt.Sprintf("writing file: %v", err)}
+	}
+
+	return ToolResult{Success: true, Output: fmt.Sprintf("Wrote %d bytes to %s", len(content), path)}
+}
+
+// --- GlobTool ---
+
+// GlobTool finds files matching a glob pattern.
+type GlobTool struct{}
+
+func (t *GlobTool) Execute(params map[string]interface{}) ToolResult {
+	pattern, _ := params["pattern"].(string)
+	if pattern == "" {
+		return ToolResult{Success: false, Error: "missing required param: pattern"}
+	}
+
+	basePath, _ := params["path"].(string)
+	if basePath == "" {
+		basePath = "."
+	}
+
+	var matches []string
+	err := filepath.WalkDir(basePath, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return nil // skip errors
+		}
+		if d.IsDir() {
+			// Skip hidden directories
+			if strings.HasPrefix(d.Name(), ".") && path != basePath {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		matched, err := filepath.Match(pattern, d.Name())
+		if err != nil {
+			return nil
+		}
+		if matched {
+			matches = append(matches, path)
+		}
+		return nil
+	})
+	if err != nil {
+		return ToolResult{Success: false, Error: fmt.Sprintf("walking directory: %v", err)}
+	}
+
+	if len(matches) == 0 {
+		return ToolResult{Success: true, Output: "No files matched the pattern."}
+	}
+
+	// Cap output
+	output := strings.Join(matches, "\n")
+	if len(matches) > 200 {
+		output = strings.Join(matches[:200], "\n")
+		output += fmt.Sprintf("\n... and %d more files", len(matches)-200)
+	}
+	return ToolResult{Success: true, Output: output}
+}
+
+// --- GrepTool ---
+
+// GrepTool searches file contents for a pattern.
+type GrepTool struct{}
+
+func (t *GrepTool) Execute(params map[string]interface{}) ToolResult {
+	pattern, _ := params["pattern"].(string)
+	if pattern == "" {
+		return ToolResult{Success: false, Error: "missing required param: pattern"}
+	}
+
+	searchPath, _ := params["path"].(string)
+	if searchPath == "" {
+		searchPath = "."
+	}
+
+	include, _ := params["include"].(string)
+	patternLower := strings.ToLower(pattern)
+
+	var results []string
+	maxResults := 100
+
+	err := filepath.WalkDir(searchPath, func(path string, d fs.DirEntry, err error) error {
+		if err != nil || d.IsDir() {
+			if d != nil && d.IsDir() && strings.HasPrefix(d.Name(), ".") && path != searchPath {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		if len(results) >= maxResults {
+			return filepath.SkipAll
+		}
+
+		// Apply include filter
+		if include != "" {
+			matched, _ := filepath.Match(include, d.Name())
+			if !matched {
+				return nil
+			}
+		}
+
+		// Skip binary-ish files
+		info, _ := d.Info()
+		if info != nil && info.Size() > 1024*1024 { // skip files > 1MB
+			return nil
+		}
+
+		data, err := os.ReadFile(path)
+		if err != nil {
+			return nil
+		}
+
+		lines := strings.Split(string(data), "\n")
+		for i, line := range lines {
+			if len(results) >= maxResults {
+				break
+			}
+			if strings.Contains(strings.ToLower(line), patternLower) {
+				results = append(results, fmt.Sprintf("%s:%d: %s", path, i+1, strings.TrimSpace(line)))
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		return ToolResult{Success: false, Error: fmt.Sprintf("searching: %v", err)}
+	}
+
+	if len(results) == 0 {
+		return ToolResult{Success: true, Output: "No matches found."}
+	}
+
+	output := strings.Join(results, "\n")
+	if len(results) >= maxResults {
+		output += fmt.Sprintf("\n... (showing first %d results)", maxResults)
+	}
+	return ToolResult{Success: true, Output: output}
+}
+
+// --- ListDirectoryTool ---
+
+// ListDirectoryTool lists directory contents.
+type ListDirectoryTool struct{}
+
+func (t *ListDirectoryTool) Execute(params map[string]interface{}) ToolResult {
+	path, _ := params["path"].(string)
+	if path == "" {
+		path = "."
+	}
+
+	recursive := false
+	if v, ok := params["recursive"]; ok {
+		switch rv := v.(type) {
+		case bool:
+			recursive = rv
+		case string:
+			recursive = rv == "true"
+		}
+	}
+
+	if recursive {
+		return t.listRecursive(path)
+	}
+	return t.listFlat(path)
+}
+
+func (t *ListDirectoryTool) listFlat(path string) ToolResult {
+	entries, err := os.ReadDir(path)
+	if err != nil {
+		return ToolResult{Success: false, Error: fmt.Sprintf("reading directory: %v", err)}
+	}
+
+	var sb strings.Builder
+	for _, entry := range entries {
+		info, _ := entry.Info()
+		if entry.IsDir() {
+			sb.WriteString(fmt.Sprintf("[DIR]  %s/\n", entry.Name()))
+		} else if info != nil {
+			sb.WriteString(fmt.Sprintf("[FILE] %s (%d bytes)\n", entry.Name(), info.Size()))
+		} else {
+			sb.WriteString(fmt.Sprintf("[FILE] %s\n", entry.Name()))
+		}
+	}
+	if sb.Len() == 0 {
+		return ToolResult{Success: true, Output: "Directory is empty."}
+	}
+	return ToolResult{Success: true, Output: sb.String()}
+}
+
+func (t *ListDirectoryTool) listRecursive(basePath string) ToolResult {
+	var sb strings.Builder
+	count := 0
+	maxEntries := 500
+
+	err := filepath.WalkDir(basePath, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return nil
+		}
+		if count >= maxEntries {
+			return filepath.SkipAll
+		}
+		// Skip hidden directories (except root)
+		if d.IsDir() && strings.HasPrefix(d.Name(), ".") && path != basePath {
+			return filepath.SkipDir
+		}
+
+		rel, _ := filepath.Rel(basePath, path)
+		if rel == "." {
+			return nil
+		}
+
+		if d.IsDir() {
+			sb.WriteString(fmt.Sprintf("[DIR]  %s/\n", rel))
+		} else {
+			info, _ := d.Info()
+			if info != nil {
+				sb.WriteString(fmt.Sprintf("[FILE] %s (%d bytes)\n", rel, info.Size()))
+			} else {
+				sb.WriteString(fmt.Sprintf("[FILE] %s\n", rel))
+			}
+		}
+		count++
+		return nil
+	})
+	if err != nil {
+		return ToolResult{Success: false, Error: fmt.Sprintf("walking directory: %v", err)}
+	}
+	if count >= maxEntries {
+		sb.WriteString(fmt.Sprintf("\n... truncated (showing first %d entries)\n", maxEntries))
+	}
+	if sb.Len() == 0 {
+		return ToolResult{Success: true, Output: "Directory is empty."}
+	}
+	return ToolResult{Success: true, Output: sb.String()}
+}
+
+// --- helpers ---
+
+func toInt(v interface{}) (int, error) {
+	switch n := v.(type) {
+	case float64:
+		return int(n), nil
+	case int:
+		return n, nil
+	case json.Number:
+		i, err := n.Int64()
+		return int(i), err
+	case string:
+		return strconv.Atoi(n)
+	}
+	return 0, fmt.Errorf("cannot convert %T to int", v)
+}
