@@ -77,16 +77,21 @@ func (r *REPL) Run(ctx context.Context) error {
 			continue
 		}
 
-		// Use non-streaming SendUserMessage so tool execution
-		// happens synchronously and permission prompts work
-		fmt.Fprint(r.writer, "\nassistant> ")
+		// Show spinner while waiting for LLM response
+		fmt.Fprintln(r.writer)
+		spin := NewSpinner(r.writer, "Thinking...")
+		spin.Start()
+
 		resp, err := r.runtime.SendUserMessage(ctx, input)
+		spin.Stop()
+
 		if err != nil {
 			r.display.Error(err)
 			fmt.Fprintln(r.writer)
 			continue
 		}
 
+		fmt.Fprint(r.writer, "assistant> ")
 		for _, block := range resp.Content {
 			switch block.Kind {
 			case "text":
@@ -100,6 +105,23 @@ func (r *REPL) Run(ctx context.Context) error {
 			}
 		}
 		fmt.Fprintln(r.writer)
+	}
+}
+
+// TerminalToolCallback updates the spinner during tool execution.
+type TerminalToolCallback struct {
+	Writer io.Writer
+}
+
+func (t *TerminalToolCallback) OnToolStart(name string, input map[string]interface{}) {
+	fmt.Fprintf(t.Writer, "\r\033[K  ⚡ Running %s...\n", name)
+}
+
+func (t *TerminalToolCallback) OnToolEnd(name string, success bool) {
+	if success {
+		fmt.Fprintf(t.Writer, "  ✓ %s done\n", name)
+	} else {
+		fmt.Fprintf(t.Writer, "  ✗ %s failed\n", name)
 	}
 }
 

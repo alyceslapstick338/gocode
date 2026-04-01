@@ -20,7 +20,20 @@ type RuntimeOptions struct {
 	PermMode      PermissionMode
 	Prompter      PermissionPrompter
 	Hooks         HookRunner
+	ToolCb        ToolCallback
 }
+
+// ToolCallback is called before and after tool execution for UI updates.
+type ToolCallback interface {
+	OnToolStart(name string, input map[string]interface{})
+	OnToolEnd(name string, isError bool)
+}
+
+// NoOpToolCallback does nothing.
+type NoOpToolCallback struct{}
+
+func (NoOpToolCallback) OnToolStart(string, map[string]interface{}) {}
+func (NoOpToolCallback) OnToolEnd(string, bool)                     {}
 
 // ConversationRuntime orchestrates the agentic tool-use loop.
 //  ConversationRuntime<C: ApiClient, T: ToolExecutor>.
@@ -35,6 +48,7 @@ type ConversationRuntime struct {
 	permPolicy   PermissionPolicy
 	hooks        HookRunner
 	usage        UsageTracker
+	toolCb       ToolCallback
 }
 
 // NewConversationRuntime creates a new runtime from options.
@@ -55,6 +69,10 @@ func NewConversationRuntime(opts RuntimeOptions) *ConversationRuntime {
 	if maxTokens <= 0 {
 		maxTokens = 8192
 	}
+	toolCb := opts.ToolCb
+	if toolCb == nil {
+		toolCb = NoOpToolCallback{}
+	}
 	return &ConversationRuntime{
 		provider:     opts.Provider,
 		executor:     opts.Executor,
@@ -64,6 +82,7 @@ func NewConversationRuntime(opts RuntimeOptions) *ConversationRuntime {
 		systemPrompt: opts.SystemPrompt,
 		permPolicy:   PermissionPolicy{Mode: opts.PermMode, Prompter: prompter},
 		hooks:        hooks,
+		toolCb:       toolCb,
 	}
 }
 
@@ -227,7 +246,9 @@ func (r *ConversationRuntime) executeTool(tu toolUseInfo) apitypes.ToolResult {
 	}
 
 	// Execute
+	r.toolCb.OnToolStart(tu.name, inputMap)
 	result := r.executor.Execute(tu.name, inputMap)
+	r.toolCb.OnToolEnd(tu.name, !result.IsError)
 	result.ToolUseID = tu.id
 	result.Output = MergeHookFeedback(preResult.Messages, result.Output, false)
 

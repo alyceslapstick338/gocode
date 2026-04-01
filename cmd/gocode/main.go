@@ -447,6 +447,7 @@ func main() {
 				SystemPrompt:  systemPrompt,
 				PermMode:      agent.WorkspaceWrite,
 				Prompter:      prompter,
+				ToolCb:        &repl.TerminalToolCallback{Writer: os.Stdout},
 			})
 
 			r := repl.NewREPL(runtime, os.Stdin, os.Stdout, repl.REPLConfig{
