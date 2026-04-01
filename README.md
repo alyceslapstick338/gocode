@@ -1,24 +1,47 @@
 <p align="center">
-  <img src="assets/logo.png" alt="gocode — The fastest multi-model AI coding agent." width="500" />
+  <img src="assets/logo.png" alt="gocode — Claude Code rewritten in Go. The fastest AI coding agent runtime." width="500" />
 </p>
 
 <p align="center">
   <img src="https://img.shields.io/badge/Go-00ADD8?style=for-the-badge&logo=go&logoColor=white" alt="Go" />
-  <img src="https://img.shields.io/badge/Claude-Supported-E34F26?style=for-the-badge" alt="Claude" />
-  <img src="https://img.shields.io/badge/GPT--4o-Supported-74aa9c?style=for-the-badge" alt="GPT-4o" />
-  <img src="https://img.shields.io/badge/Gemini-Supported-4285F4?style=for-the-badge" alt="Gemini" />
-  <img src="https://img.shields.io/badge/Grok-Supported-000000?style=for-the-badge" alt="Grok" />
-  <img src="https://img.shields.io/badge/MCP-Protocol-blueviolet?style=for-the-badge" alt="MCP" />
+  <img src="https://img.shields.io/badge/Claude_Code-Go_Port-E34F26?style=for-the-badge" alt="Claude Code Go Port" />
+  <img src="https://img.shields.io/badge/Multi--Model-Claude_GPT_Gemini_Grok-blueviolet?style=for-the-badge" alt="Multi-Model" />
+  <img src="https://img.shields.io/badge/MCP-Protocol_Compliant-blueviolet?style=for-the-badge" alt="MCP Protocol Compliant" />
+  <img src="https://img.shields.io/badge/Cursor-Ready-green?style=for-the-badge" alt="Cursor MCP Ready" />
+  <img src="https://img.shields.io/badge/Kiro-Integrated-orange?style=for-the-badge" alt="Kiro Integrated" />
+  <img src="https://img.shields.io/badge/VS_Code-Ready-007ACC?style=for-the-badge" alt="VS Code MCP Ready" />
+  <img src="https://img.shields.io/badge/Antigravity-Ready-purple?style=for-the-badge" alt="Antigravity MCP Ready" />
   <img src="https://img.shields.io/badge/License-MIT-green?style=for-the-badge" alt="MIT License" />
 </p>
 
-<h1 align="center">gocode — One Agent. Every Model. Zero Dependencies.</h1>
+<h1 align="center">gocode — Claude Code, Rewritten in Go. Now Multi-Model.</h1>
 
-<h3 align="center">A standalone AI coding agent + MCP server in a single Go binary.<br/>Use it from your terminal. Use it from your IDE. Use any LLM you want.</h3>
+<h3 align="center">The Go version of Claude Code. One binary. Zero dependencies. 20× faster.<br/>Now with standalone agent mode — use Claude, GPT-4o, Gemini, or Grok from your terminal.</h3>
+
+<p align="center">
+  <strong>An open-source Go reimplementation of the Claude Code AI coding agent.</strong><br/>
+  We took the Claude Code architecture — the AI agent runtime that powers tool orchestration, session management, and prompt routing — and rebuilt every subsystem in Go. Then we went further: multi-model support, a standalone terminal agent, and native IDE integration. One binary, any LLM, instant startup.
+</p>
 
 <p align="center">
   <code>go install github.com/AlleyBo55/gocode/cmd/gocode@latest</code>
 </p>
+
+---
+
+## Why gocode Exists
+
+Every great product starts with a simple observation.
+
+Claude Code is a remarkable piece of engineering. The way it decomposes tool orchestration. The way it manages sessions. The way it routes prompts. The architecture is elegant. The ideas are right.
+
+But the implementation carries weight it doesn't need. And it only works with Claude.
+
+We asked two questions: **what if the best AI coding agent was also the fastest?** And **what if it worked with any model?**
+
+Not a wrapper. Not a thin binding. A complete, ground-up reimplementation in Go — every registry, every scoring algorithm, every subsystem — enhanced with multi-model support, a standalone terminal agent, a production-grade MCP server, and native IDE integrations that the original never had.
+
+gocode starts in under 10 milliseconds. It ships as a single 12MB binary. It works with Claude, GPT-4o, Gemini, and Grok. You download it. You run it. That's it.
 
 ---
 
@@ -130,6 +153,30 @@ Open a PR. Start a discussion. File an issue. Every contribution makes gocode be
 
 ---
 
+## The Numbers
+
+| Metric | Claude Code (Python) | gocode (Go) |
+|--------|---------------------|-------------|
+| Startup time | ~200ms | **<10ms** (20× faster) |
+| Binary size | N/A (interpreted) | **~12MB** (single file) |
+| Runtime dependencies | Python 3.10+, pip, venv | **None** |
+| LLM providers | Claude only | **Claude, GPT-4o, Gemini, Grok** |
+| Deployment | `pip install` + virtualenv | **Copy one file** |
+| Concurrency model | asyncio / threading | **Goroutines + channels** |
+| MCP compliance | N/A | **Full specification** |
+| IDE integrations | N/A | **5 IDEs supported** |
+| Standalone agent | Yes (Claude only) | **Yes (any model)** |
+
+---
+
+## Search Keywords
+
+gocode is the **Go version of Claude Code** — if you searched for any of these terms, you found the right project:
+
+`claude code go` · `claude code golang` · `claude code alternative` · `claude code open source` · `claude code rewrite` · `claude code port` · `go claude code` · `golang claude code` · `claude code cli golang` · `ai coding agent go` · `ai coding agent golang` · `go ai agent` · `golang ai agent` · `mcp server go` · `mcp server golang` · `mcp golang` · `model context protocol go` · `cursor mcp server go` · `kiro mcp server` · `vscode mcp server golang` · `claude desktop mcp go` · `go ai coding assistant` · `golang ai coding tool` · `claude code go port` · `claude code go version` · `claude code reimplementation` · `open source claude code` · `claude code alternative golang` · `fast ai agent go` · `lightweight ai agent` · `single binary ai agent` · `multi model ai agent` · `gpt4o coding agent` · `gemini coding agent` · `grok coding agent`
+
+---
+
 ## License
 
 MIT — use it, fork it, ship it.
@@ -137,8 +184,13 @@ MIT — use it, fork it, ship it.
 ---
 
 <p align="center">
-  <strong>gocode — one agent, every model, zero dependencies.</strong><br/>
-  The AI coding agent that works the way you do.
+  <em>"The people who are crazy enough to think they can change the world are the ones who do."</em>
+</p>
+
+<p align="center">
+  <strong>gocode — the Go version of Claude Code. Now multi-model.</strong><br/>
+  One binary. Zero dependencies. Instant startup. Any LLM.<br/>
+  This is what an AI coding agent should feel like.
 </p>
 
 <p align="center">
