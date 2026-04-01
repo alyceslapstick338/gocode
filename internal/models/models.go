@@ -1,8 +1,8 @@
 package models
 
 import (
-"fmt"
-"strings"
+	"fmt"
+	"strings"
 )
 
 // Subsystem represents a logical subsystem in the porting project.
@@ -13,10 +13,31 @@ type Subsystem struct {
 	Notes     string `json:"notes"`
 }
 
+// SchemaProperty describes a single property in a JSON Schema.
+type SchemaProperty struct {
+	Type        string `json:"type"`
+	Description string `json:"description,omitempty"`
+}
+
+// InputSchema describes the JSON Schema for a tool's input parameters.
+type InputSchema struct {
+	Type       string                    `json:"type"`
+	Properties map[string]SchemaProperty `json:"properties,omitempty"`
+	Required   []string                  `json:"required,omitempty"`
+}
+
+// ToolDefinition is the MCP-compliant tool definition returned by tools/list.
+type ToolDefinition struct {
+	Name        string      `json:"name"`
+	Description string      `json:"description"`
+	InputSchema InputSchema `json:"inputSchema"`
+}
+
 // PortingModule represents a single module to be ported.
 type PortingModule struct {
 	Name           string `json:"name"`
 	Responsibility string `json:"responsibility"`
+	Description    string `json:"description,omitempty"`
 	SourceHint     string `json:"source_hint"`
 	Status         string `json:"status"`
 }
