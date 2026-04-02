@@ -163,7 +163,7 @@ Use any of these out of the box. Just set the right API key and go.
 | **Google** | Gemini 3.1 Pro, Gemini 3 Flash, Gemini 2.5 Pro | `gemini`, `gemini-flash`, `gemini-2.5` | `GEMINI_API_KEY` |
 | **xAI** | Grok 4.20 Beta, Grok 3, Grok 3 Mini | `grok`, `grok-3`, `grok-mini` | `XAI_API_KEY` |
 
-Or pass any full model ID: `--model gpt-4o-2024-08-06`, `--model claude-sonnet-4-6`, etc.
+Or pass any full model ID: `--model gpt-5.4`, `--model claude-sonnet-4-6`, `--model gemini-3.1-pro-preview`, `--model grok-4.20-beta`, etc.
 
 ---
 
@@ -268,7 +268,7 @@ Open a PR. Start a discussion. File an issue. Every contribution makes gocode be
 | Startup time | ~200ms | **<10ms** (20× faster) |
 | Binary size | N/A (interpreted) | **~12MB** (single file) |
 | Runtime dependencies | Python 3.10+, pip, venv | **None** |
-| LLM providers | Claude only | **Claude, GPT-4o, Gemini, Grok** |
+| LLM providers | Claude only | **Claude, GPT-5.4, Gemini 3.1, Grok 4.20** |
 | Deployment | `pip install` + virtualenv | **Copy one file** |
 | Concurrency model | asyncio / threading | **Goroutines + channels** |
 | MCP compliance | N/A | **Full specification** |
