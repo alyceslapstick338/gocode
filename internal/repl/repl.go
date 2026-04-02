@@ -208,7 +208,18 @@ func (r *REPL) Run(ctx context.Context) error {
 				last := strings.TrimSpace(lines[len(lines)-1])
 				msg = "gocode: " + last
 			}
-			msg += "\n\nCo-Authored-By: gocode <gocode@agent>"
+			// Use the git user's name and email for Co-Authored-By
+			gitName, _ := exec.Command("git", "config", "user.name").Output()
+			gitEmail, _ := exec.Command("git", "config", "user.email").Output()
+			authorName := strings.TrimSpace(string(gitName))
+			authorEmail := strings.TrimSpace(string(gitEmail))
+			if authorName == "" {
+				authorName = "gocode"
+			}
+			if authorEmail == "" {
+				authorEmail = "gocode@agent"
+			}
+			msg += fmt.Sprintf("\n\nCo-Authored-By: %s <%s>", authorName, authorEmail)
 			out, commitErr := exec.Command("git", "commit", "-m", msg).CombinedOutput()
 			if commitErr != nil {
 				fmt.Fprintf(r.writer, "Commit error: %v\n%s\n", commitErr, string(out))

@@ -116,7 +116,7 @@
   {
     "name": "WebSearchTool",
     "responsibility": "search the web",
-    "description": "Search the web for information. Requires an MCP web search server to be configured in .gocode/mcp.json for full functionality.",
+    "description": "Search the web for information using DuckDuckGo. Returns abstracts, answers, and related topics. No API key required.",
     "source_hint": "tools/web",
     "input_schema": {
       "type": "object",
