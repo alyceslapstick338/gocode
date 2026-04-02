@@ -167,6 +167,91 @@ Or pass any full model ID: `--model gpt-5.4`, `--model claude-sonnet-4-6`, `--mo
 
 ---
 
+## Installation
+
+### One-Line Install (macOS / Linux)
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/AlleyBo55/gocode/main/install.sh | bash
+```
+
+Downloads the latest release binary for your platform and installs to `/usr/local/bin`. No Go required.
+
+### One-Line Install (Windows PowerShell)
+
+```powershell
+irm https://raw.githubusercontent.com/AlleyBo55/gocode/main/install.ps1 | iex
+```
+
+Or download manually — see below.
+
+### Go Install (all platforms, requires Go 1.21+)
+
+```bash
+go install github.com/AlleyBo55/gocode/cmd/gocode@latest
+```
+
+### Download Binary Manually
+
+Grab the binary for your platform from [GitHub Releases](https://github.com/AlleyBo55/gocode/releases):
+
+| Platform | File |
+|----------|------|
+| macOS (Apple Silicon) | `gocode_*_darwin_arm64.tar.gz` |
+| macOS (Intel) | `gocode_*_darwin_amd64.tar.gz` |
+| Linux (x86_64) | `gocode_*_linux_amd64.tar.gz` |
+| Linux (ARM64) | `gocode_*_linux_arm64.tar.gz` |
+| Windows (x86_64) | `gocode_*_windows_amd64.zip` |
+| Windows (ARM64) | `gocode_*_windows_arm64.zip` |
+
+**macOS / Linux:**
+
+```bash
+# Example: macOS Apple Silicon
+curl -fsSL https://github.com/AlleyBo55/gocode/releases/latest/download/gocode_darwin_arm64.tar.gz | tar xz
+sudo mv gocode /usr/local/bin/
+```
+
+**Windows (PowerShell):**
+
+```powershell
+# Download and extract
+Invoke-WebRequest -Uri "https://github.com/AlleyBo55/gocode/releases/latest/download/gocode_windows_amd64.zip" -OutFile gocode.zip
+Expand-Archive gocode.zip -DestinationPath .
+# Move to a directory in your PATH, e.g.:
+Move-Item gocode.exe "$env:LOCALAPPDATA\Microsoft\WindowsApps\gocode.exe"
+```
+
+### Linux Packages (deb/rpm)
+
+```bash
+# Debian/Ubuntu
+curl -fsSL https://github.com/AlleyBo55/gocode/releases/latest/download/gocode_amd64.deb -o gocode.deb
+sudo dpkg -i gocode.deb
+
+# Fedora/RHEL
+curl -fsSL https://github.com/AlleyBo55/gocode/releases/latest/download/gocode_amd64.rpm -o gocode.rpm
+sudo rpm -i gocode.rpm
+```
+
+### Build from Source (all platforms)
+
+```bash
+git clone https://github.com/AlleyBo55/gocode.git
+cd gocode
+go build -o gocode ./cmd/gocode/    # on Windows: go build -o gocode.exe ./cmd/gocode/
+sudo mv gocode /usr/local/bin/       # on Windows: move to a PATH directory
+```
+
+### Verify Installation
+
+```bash
+gocode --version
+# gocode version v0.3.5
+```
+
+---
+
 ## Quickstart — 60 Seconds to Your First Agent Session
 
 ```bash
