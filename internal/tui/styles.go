@@ -127,26 +127,18 @@ func ApplyTheme(t Theme) {
 	diffHeaderStyle = lipgloss.NewStyle().Foreground(goBlue).Bold(true)
 }
 
-// GopherWelcome returns the Go gopher welcome message for empty chat state.
+// GopherWelcome returns the GOCODE ASCII art welcome for empty chat state.
 func GopherWelcome() string {
-	gopher := lipgloss.NewStyle().Foreground(goBlue).Render(`
-        ╻╻
-       ╭┫┣╮
-      ╭┫╰╯┣╮
-    ╭━┫┃  ┃┣━╮
-    ┃ ╰┫  ┣╯ ┃
-    ╰━━┫  ┣━━╯
-       ┃  ┃
-       ╹  ╹`)
-
-	title := lipgloss.NewStyle().
-		Foreground(goBlue).
-		Bold(true).
-		Render("  gocode")
+	logo := lipgloss.NewStyle().Foreground(goBlue).Bold(true).Render(
+		"   ██████   ██████   ██████  ██████  ██████  ███████\n" +
+			"  ██       ██    ██ ██      ██    ██ ██   ██ ██     \n" +
+			"  ██   ███ ██    ██ ██      ██    ██ ██   ██ █████  \n" +
+			"  ██    ██ ██    ██ ██      ██    ██ ██   ██ ██     \n" +
+			"   ██████   ██████   ██████  ██████  ██████  ███████")
 
 	subtitle := lipgloss.NewStyle().
 		Foreground(goGray).
-		Render("  Type a message to start coding.")
+		Render("  Type a message to start. /help for commands.")
 
-	return gopher + "\n\n" + title + "\n" + subtitle
+	return "\n" + logo + "\n\n" + subtitle
 }

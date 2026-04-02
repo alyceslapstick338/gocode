@@ -47,7 +47,7 @@ import (
 	"github.com/AlleyBo55/gocode/internal/tools"
 )
 
-var version = "v0.7.1"
+var version = "v0.7.2"
 
 // isTerminal checks if stdout is a terminal (not piped).
 func isTerminal() bool {
@@ -546,7 +546,7 @@ func main() {
 			allowedTools, _ := cmd.Flags().GetStringSlice("allowedTools")
 			disallowedTools, _ := cmd.Flags().GetStringSlice("disallowedTools")
 			useTUI, _ := cmd.Flags().GetBool("tui")
-			noTUI, _ := cmd.Flags().GetBool("no-tui")
+			_, _ = cmd.Flags().GetBool("no-tui") // kept for backward compat
 			themeName, _ := cmd.Flags().GetString("theme")
 
 			permMode := agent.WorkspaceWrite
@@ -650,7 +650,7 @@ func main() {
 			// Phase 1: wrap runtime with SessionRecoveryManager
 			_ = agent.NewSessionRecoveryManager(rt, sessionStore, stdRecoveryLogger{})
 
-			if (useTUI || !noTUI) && isTerminal() {
+			if useTUI && isTerminal() {
 				tui.ApplyTheme(tui.LoadTheme(themeName))
 				return tui.Run(rt, tui.Config{
 					Version:  version,

@@ -146,6 +146,13 @@ func (m Model) Update(msg bubbletea.Msg) (bubbletea.Model, bubbletea.Cmd) {
 			if text == "" {
 				return m, nil
 			}
+
+			// Handle slash commands locally instead of sending to LLM
+			if strings.HasPrefix(text, "/") {
+				m.input = ""
+				return m.handleSlashCommand(text)
+			}
+
 			m.messages = append(m.messages, ChatMessage{Role: "user", Content: text})
 			m.input = ""
 			m.streaming = true
@@ -472,6 +479,161 @@ func renderDiff(diff string, width, height int) string {
 		rendered = append(rendered, "")
 	}
 	return strings.Join(rendered, "\n")
+}
+
+// handleSlashCommand processes slash commands locally in the TUI.
+func (m Model) handleSlashCommand(text string) (bubbletea.Model, bubbletea.Cmd) {
+	lower := strings.ToLower(strings.TrimSpace(text))
+
+	switch {
+	case lower == "/exit":
+		m.quitting = true
+		return m, bubbletea.Quit
+
+	case lower == "/clear":
+		m.runtime.RestoreSession(nil)
+		m.messages = nil
+		m.statusMsg = "Session cleared"
+		return m, nil
+
+	case lower == "/cost":
+		usage := m.runtime.GetUsage()
+		m.messages = append(m.messages, ChatMessage{Role: "tool", Content: usage.Render()})
+		return m, nil
+
+	case lower == "/compact":
+		before := len(m.runtime.GetSession())
+		m.runtime.CompactSession(10)
+		after := len(m.runtime.GetSession())
+		m.messages = append(m.messages, ChatMessage{Role: "tool", Content: fmt.Sprintf("Compacted: %d → %d messages", before, after)})
+		return m, nil
+
+	case lower == "/status":
+		cwd, _ := os.Getwd()
+		usage := m.runtime.GetUsage()
+		msgs := len(m.runtime.GetSession())
+		info := fmt.Sprintf("Model: %s | Messages: %d | Tokens: %d in / %d out | Turns: %d | CWD: %s",
+			m.config.Model, msgs, usage.InputTokens, usage.OutputTokens, usage.Turns, cwd)
+		if branch := gitBranch(); branch != "" {
+			info += " | Branch: " + branch
+		}
+		m.messages = append(m.messages, ChatMessage{Role: "tool", Content: info})
+		return m, nil
+
+	case lower == "/diff":
+		m.showDiff = !m.showDiff
+		if m.showDiff {
+			m.refreshDiff()
+		}
+		return m, nil
+
+	case lower == "/undo":
+		out, err := exec.Command("git", "stash", "push", "-m", "gocode-undo").CombinedOutput()
+		if err != nil {
+			m.messages = append(m.messages, ChatMessage{Role: "tool", Content: "Nothing to undo.", IsError: true})
+		} else {
+			m.messages = append(m.messages, ChatMessage{Role: "tool", Content: "Changes stashed. Use /redo to restore.\n" + strings.TrimSpace(string(out))})
+		}
+		return m, nil
+
+	case lower == "/redo":
+		out, err := exec.Command("git", "stash", "pop").CombinedOutput()
+		if err != nil {
+			m.messages = append(m.messages, ChatMessage{Role: "tool", Content: "Nothing to redo.", IsError: true})
+		} else {
+			m.messages = append(m.messages, ChatMessage{Role: "tool", Content: "Changes restored.\n" + strings.TrimSpace(string(out))})
+		}
+		return m, nil
+
+	case lower == "/help":
+		help := "Commands:\n" +
+			"  /help       Show this help\n" +
+			"  /exit       Quit session\n" +
+			"  /clear      Reset conversation\n" +
+			"  /compact    Compact history\n" +
+			"  /cost       Token usage & cost\n" +
+			"  /status     Session info\n" +
+			"  /diff       Toggle diff panel\n" +
+			"  /undo       Stash changes\n" +
+			"  /redo       Restore stash\n" +
+			"  /skill      List/activate skills\n" +
+			"  /model      Show current model\n" +
+			"  /doctor     Check environment\n" +
+			"  /connect    Provider setup\n" +
+			"  /share      Export session\n" +
+			"  /review     Review changes\n" +
+			"  /permissions Permission mode"
+		m.messages = append(m.messages, ChatMessage{Role: "tool", Content: help})
+		return m, nil
+
+	case lower == "/model":
+		m.messages = append(m.messages, ChatMessage{Role: "tool", Content: "Current model: " + m.config.Model})
+		return m, nil
+
+	case lower == "/connect":
+		m.messages = append(m.messages, ChatMessage{Role: "tool", Content: "Providers:\n  1. Anthropic — export ANTHROPIC_API_KEY=...\n  2. OpenAI — export OPENAI_API_KEY=...\n  3. Google — export GEMINI_API_KEY=...\n  4. xAI — export XAI_API_KEY=..."})
+		return m, nil
+
+	case lower == "/permissions":
+		m.messages = append(m.messages, ChatMessage{Role: "tool", Content: "Permission mode: workspace-write (prompts before tool execution)"})
+		return m, nil
+
+	case lower == "/doctor":
+		var lines []string
+		checks := []struct{ name, bin string }{
+			{"git", "git"}, {"go", "go"}, {"tmux", "tmux"}, {"ast-grep", "ast-grep"},
+		}
+		for _, c := range checks {
+			if _, err := exec.LookPath(c.bin); err == nil {
+				lines = append(lines, "  ✓ "+c.name)
+			} else {
+				lines = append(lines, "  ✗ "+c.name)
+			}
+		}
+		for _, env := range []string{"ANTHROPIC_API_KEY", "OPENAI_API_KEY", "GEMINI_API_KEY", "XAI_API_KEY"} {
+			if os.Getenv(env) != "" {
+				lines = append(lines, "  ✓ "+env)
+			} else {
+				lines = append(lines, "  - "+env)
+			}
+		}
+		m.messages = append(m.messages, ChatMessage{Role: "tool", Content: strings.Join(lines, "\n")})
+		return m, nil
+
+	case lower == "/review":
+		diff, _ := exec.Command("git", "diff").Output()
+		if len(diff) == 0 {
+			m.messages = append(m.messages, ChatMessage{Role: "tool", Content: "No changes to review."})
+			return m, nil
+		}
+		reviewPrompt := fmt.Sprintf("Review these changes:\n\n```diff\n%s\n```", string(diff))
+		m.messages = append(m.messages, ChatMessage{Role: "user", Content: "/review"})
+		m.streaming = true
+		m.statusMsg = "Reviewing..."
+		m.ctx, m.cancel = context.WithCancel(context.Background())
+		return m, m.sendMessage(reviewPrompt)
+
+	case strings.HasPrefix(lower, "/skill"):
+		arg := strings.TrimSpace(strings.TrimPrefix(lower, "/skill"))
+		if arg == "" {
+			var lines []string
+			for _, s := range m.config.Skills {
+				lines = append(lines, "  "+s.Name)
+			}
+			if len(lines) == 0 {
+				lines = append(lines, "  No skills loaded.")
+			}
+			m.messages = append(m.messages, ChatMessage{Role: "tool", Content: "Skills:\n" + strings.Join(lines, "\n")})
+		} else {
+			m.messages = append(m.messages, ChatMessage{Role: "tool", Content: "Skill activation in TUI: use --skill flag at startup."})
+		}
+		return m, nil
+
+	default:
+		// Unknown command — show as error
+		m.messages = append(m.messages, ChatMessage{Role: "tool", Content: "Unknown command: " + text + ". Type /help for available commands.", IsError: true})
+		return m, nil
+	}
 }
 
 // Run starts the TUI program.
