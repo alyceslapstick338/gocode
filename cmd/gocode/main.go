@@ -39,7 +39,7 @@ import (
 	"github.com/AlleyBo55/gocode/internal/tools"
 )
 
-var version = "v0.3.6"
+var version = "v0.4.0"
 
 // stdRecoveryLogger logs recovery events to stderr via the standard log package.
 type stdRecoveryLogger struct{}
@@ -528,6 +528,11 @@ func main() {
 				return fmt.Errorf("resolving provider: %w", err)
 			}
 
+			// After resolving the model, set model-aware max tokens if user didn't override
+			if !cmd.Flags().Changed("max-tokens") {
+				maxTokens = apiclient.MaxTokensForModel(resolvedModel)
+			}
+
 			// Phase 1: wrap provider with FallbackProvider and ModelRouter
 			fp := buildFallbackProvider(provider, resolvedModel)
 			router := buildModelRouter(fp)
@@ -616,6 +621,11 @@ func main() {
 			provider, resolvedModel, err := apiclient.ResolveProvider(model, apiKey)
 			if err != nil {
 				return fmt.Errorf("resolving provider: %w", err)
+			}
+
+			// After resolving the model, set model-aware max tokens if user didn't override
+			if !cmd.Flags().Changed("max-tokens") {
+				maxTokens = apiclient.MaxTokensForModel(resolvedModel)
 			}
 
 			// Phase 1: wrap provider with FallbackProvider and ModelRouter

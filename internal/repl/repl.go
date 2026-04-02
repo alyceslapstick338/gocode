@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"strings"
 
 	"github.com/AlleyBo55/gocode/internal/agent"
@@ -96,9 +97,34 @@ func (r *REPL) Run(ctx context.Context) error {
 		case CmdSkill:
 			r.handleSkillCommand(input)
 			continue
+		case CmdCompact:
+			before := len(r.runtime.GetSession())
+			r.runtime.CompactSession(10)
+			after := len(r.runtime.GetSession())
+			fmt.Fprintf(r.writer, "Compacted: %d → %d messages\n", before, after)
+			continue
+		case CmdHelp:
+			fmt.Fprintln(r.writer, "Available commands:")
+			fmt.Fprintln(r.writer, "  /help       Show this help")
+			fmt.Fprintln(r.writer, "  /exit       Quit session")
+			fmt.Fprintln(r.writer, "  /clear      Reset conversation")
+			fmt.Fprintln(r.writer, "  /compact    Compact conversation history")
+			fmt.Fprintln(r.writer, "  /cost       Show token usage and cost")
+			fmt.Fprintln(r.writer, "  /model      Show or switch model")
+			fmt.Fprintln(r.writer, "  /skill      List or activate skills")
+			fmt.Fprintln(r.writer, "  /plan       Start planning session")
+			fmt.Fprintln(r.writer, "  /init-deep  Generate AGENTS.md files")
+			fmt.Fprintln(r.writer, "  /diff       Show git diff of changes")
+			continue
+		case CmdModel:
+			r.handleModelCommand(input)
+			continue
+		case CmdDiff:
+			r.handleDiffCommand()
+			continue
 		}
 
-		// Show spinner while waiting for LLM response
+		// Show spinner while waiting for first token
 		fmt.Fprintln(r.writer)
 		spin := NewSpinner(r.writer, "Thinking...")
 
@@ -108,18 +134,26 @@ func (r *REPL) Run(ctx context.Context) error {
 		}
 
 		spin.Start()
-
-		resp, err := r.runtime.SendUserMessage(ctx, input)
-		spin.Stop()
-
+		eventCh, err := r.runtime.StreamUserMessage(ctx, input)
 		if err != nil {
+			spin.Stop()
 			r.display.Error(err)
 			fmt.Fprintln(r.writer)
 			continue
 		}
 
-		fmt.Fprintf(r.writer, "%sassistant>%s ", cBlue+ansiBold, ansiReset)
-		r.display.RenderResponse(resp)
+		firstToken := true
+		for ev := range eventCh {
+			if firstToken && ev.Kind == "content_block_delta" && ev.BlockDelta != nil && ev.BlockDelta.Kind == "text_delta" {
+				spin.Stop()
+				fmt.Fprintf(r.writer, "%sassistant>%s ", cBlue+ansiBold, ansiReset)
+				firstToken = false
+			}
+			r.display.StreamEvent(ev)
+		}
+		if firstToken {
+			spin.Stop()
+		} // no text was streamed
 		fmt.Fprintln(r.writer)
 	}
 }
@@ -175,6 +209,32 @@ func truncateSkillDesc(s string, maxLen int) string {
 		return s
 	}
 	return s[:maxLen-3] + "..."
+}
+
+// handleModelCommand processes the /model slash command.
+func (r *REPL) handleModelCommand(input string) {
+	trimmed := strings.TrimSpace(input)
+	arg := strings.TrimSpace(strings.TrimPrefix(trimmed, "/model"))
+	if arg == "" {
+		fmt.Fprintf(r.writer, "Current model: %s%s%s\n", cGreen+ansiBold, r.config.Model, ansiReset)
+		return
+	}
+	fmt.Fprintf(r.writer, "Model switching mid-session requires restart. Start a new session with: gocode chat --model %s\n", arg)
+}
+
+// handleDiffCommand runs git diff and prints the output.
+func (r *REPL) handleDiffCommand() {
+	out, err := exec.Command("git", "diff").Output()
+	if err != nil {
+		fmt.Fprintf(r.writer, "Error running git diff: %v\n", err)
+		return
+	}
+	diff := strings.TrimSpace(string(out))
+	if diff == "" {
+		fmt.Fprintln(r.writer, "No changes detected.")
+		return
+	}
+	fmt.Fprintln(r.writer, diff)
 }
 
 // TerminalToolCallback updates the terminal during tool execution.
@@ -311,7 +371,8 @@ func BuildSystemPrompt(tools []apitypes.ToolDef) string {
 		toolList.WriteString(fmt.Sprintf("- %s: %s\n", t.Name, t.Description))
 	}
 
-	return fmt.Sprintf(`You are gocode, an interactive CLI tool that helps users with software engineering tasks. Use the instructions below and the tools available to you to assist the user.
+	var sb strings.Builder
+	sb.WriteString(fmt.Sprintf(`You are gocode, an interactive CLI tool that helps users with software engineering tasks. Use the instructions below and the tools available to you to assist the user.
 
 IMPORTANT: You should be proactive in accomplishing the task, not reactive. Do not wait for the user to ask you to do something that you can anticipate.
 
@@ -360,5 +421,29 @@ When making code changes:
 
 # Available Tools
 
-%s`, cwd, osName, shell, toolList.String())
+%s`, cwd, osName, shell, toolList.String()))
+
+	// Git context
+	if branch, err := exec.Command("git", "rev-parse", "--abbrev-ref", "HEAD").Output(); err == nil {
+		gitBranch := strings.TrimSpace(string(branch))
+		// also get short status
+		status, _ := exec.Command("git", "status", "--short").Output()
+		statusLines := strings.Split(strings.TrimSpace(string(status)), "\n")
+		changedFiles := len(statusLines)
+		if statusLines[0] == "" {
+			changedFiles = 0
+		}
+		sb.WriteString(fmt.Sprintf("\n# Git\n- Branch: %s\n- Changed files: %d\n", gitBranch, changedFiles))
+	}
+
+	// Load project config (CLAUDE.md or GOCODE.md)
+	for _, name := range []string{"GOCODE.md", "CLAUDE.md"} {
+		if data, err := os.ReadFile(name); err == nil {
+			sb.WriteString("\n\n# Project Instructions (from " + name + ")\n\n")
+			sb.WriteString(string(data))
+			break
+		}
+	}
+
+	return sb.String()
 }
