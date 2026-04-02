@@ -4,35 +4,24 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 )
 
-// ANSI color codes
+// ANSI color codes — Go brand palette
 const (
 	reset   = "\033[0m"
 	bold    = "\033[1m"
 	dim     = "\033[2m"
-	b4      = "\033[38;5;39m"  // bright blue
-	b6      = "\033[38;5;51m"  // cyan-blue
+	goBlueC = "\033[38;5;38m"  // Go blue #00ADD8
+	goTealC = "\033[38;5;37m"  // Go teal #00A29C
 	white   = "\033[38;5;255m"
 	gray    = "\033[38;5;242m"
 	green   = "\033[38;5;114m"
 	yellow  = "\033[38;5;221m"
 	boxChar = "\033[38;5;60m"
 )
-
-// The gopher — same pixel art as Claude Code's claw mascot, but blue
-var gopher = []string{
-	b4 + `        ╻╻` + reset,
-	b4 + `       ╭┫┣╮` + reset,
-	b4 + `      ╭┫╰╯┣╮` + reset,
-	b4 + `    ╭━┫┃  ┃┣━╮` + reset,
-	b4 + `    ┃ ╰┫  ┣╯ ┃` + reset,
-	b4 + `    ╰━━┫  ┣━━╯` + reset,
-	b4 + `       ┃  ┃` + reset,
-	b4 + `       ╹  ╹` + reset,
-}
 
 // BannerConfig holds the info displayed in the welcome banner.
 type BannerConfig struct {
@@ -42,7 +31,7 @@ type BannerConfig struct {
 	Cwd      string
 }
 
-// PrintBanner renders the Claude-Code-style welcome screen.
+// PrintBanner renders the OpenCode-style welcome screen with Go blue GOCODE branding.
 func PrintBanner(w io.Writer, cfg BannerConfig) {
 	cwd := cfg.Cwd
 	if cwd == "" {
@@ -59,81 +48,73 @@ func PrintBanner(w io.Writer, cfg BannerConfig) {
 		version = "dev"
 	}
 
-	width := 64
-	title := fmt.Sprintf(" gocode %s ", version)
-	padTotal := width - 2 - len(title)
-	padLeft := padTotal / 2
-	padRight := padTotal - padLeft
-
-	fmt.Fprintf(w, "%s╭%s%s%s%s%s%s%s╮%s\n",
-		boxChar, strings.Repeat("─", padLeft), reset, bold+b6, title, reset, boxChar, strings.Repeat("─", padRight), reset)
-	printEmptyLine(w, width)
-
-	// Left: gopher + model info, Right: tips + models
-	leftLines := []string{""}
-	leftLines = append(leftLines, gopher...)
-	leftLines = append(leftLines, "")
-	leftLines = append(leftLines, fmt.Sprintf(" %s%s%s • Max %s%d%sx", bold+white, cfg.Model, reset, bold+white, cfg.MaxTurns, reset))
-	leftLines = append(leftLines, fmt.Sprintf(" %s%s%s", dim+gray, cwd, reset))
-
-	rightLines := []string{
-		green + bold + "Tips" + reset,
-		gray + " /exit      " + white + "quit session" + reset,
-		gray + " /clear     " + white + "reset history" + reset,
-		gray + " /cost      " + white + "token usage" + reset,
-		gray + " Ctrl+D     " + white + "quit (EOF)" + reset,
-		"",
-		yellow + bold + "Models" + reset,
-		gray + " --model " + white + "sonnet" + gray + "  Claude" + reset,
-		gray + " --model " + white + "gpt5" + gray + "    GPT-5.4" + reset,
-		gray + " --model " + white + "gemini" + gray + "  Gemini 3.1" + reset,
-		gray + " --model " + white + "grok" + gray + "    Grok 4.20" + reset,
+	// Get git branch
+	branch := ""
+	if out, err := exec.Command("git", "rev-parse", "--abbrev-ref", "HEAD").Output(); err == nil {
+		branch = strings.TrimSpace(string(out))
 	}
 
-	maxLines := len(leftLines)
-	if len(rightLines) > maxLines {
-		maxLines = len(rightLines)
-	}
-	for len(leftLines) < maxLines {
-		leftLines = append(leftLines, "")
-	}
-	for len(rightLines) < maxLines {
-		rightLines = append(rightLines, "")
+	// ASCII art logo in Go blue
+	logo := []string{
+		goBlueC + `   ██████   ██████   ██████  ██████  ██████  ███████` + reset,
+		goBlueC + `  ██       ██    ██ ██      ██    ██ ██   ██ ██     ` + reset,
+		goBlueC + `  ██   ███ ██    ██ ██      ██    ██ ██   ██ █████  ` + reset,
+		goBlueC + `  ██    ██ ██    ██ ██      ██    ██ ██   ██ ██     ` + reset,
+		goBlueC + `   ██████   ██████   ██████  ██████  ██████  ███████` + reset,
 	}
 
-	leftColWidth := 30
-	for i := 0; i < maxLines; i++ {
-		left := leftLines[i]
-		right := rightLines[i]
-		lv := visibleLen(left)
-		rv := visibleLen(right)
-		lpad := leftColWidth - lv
-		if lpad < 0 {
-			lpad = 0
+	fmt.Fprintln(w)
+	for _, line := range logo {
+		fmt.Fprintln(w, "  "+line)
+	}
+	fmt.Fprintln(w)
+
+	// Info line
+	fmt.Fprintf(w, "  %s%s%s %s%s%s", goBlueC+bold, version, reset, gray, cwd, reset)
+	if branch != "" {
+		fmt.Fprintf(w, " %s(%s)%s", goTealC, branch, reset)
+	}
+	fmt.Fprintln(w)
+	fmt.Fprintln(w)
+
+	// Model + turns
+	fmt.Fprintf(w, "  %smodel%s %s%s%s  %sturns%s %s%d%s\n",
+		gray, reset, white+bold, cfg.Model, reset,
+		gray, reset, white+bold, cfg.MaxTurns, reset)
+	fmt.Fprintln(w)
+
+	// Separator
+	fmt.Fprintf(w, "  %s%s%s\n", gray, strings.Repeat("─", 56), reset)
+	fmt.Fprintln(w)
+
+	// Commands in two columns
+	cmds := []struct{ cmd, desc string }{
+		{"/help", "commands"},
+		{"/cost", "token usage"},
+		{"/compact", "compact history"},
+		{"/diff", "show changes"},
+		{"/skill", "list skills"},
+		{"/status", "session info"},
+		{"/undo", "stash changes"},
+		{"/doctor", "check env"},
+	}
+
+	for i := 0; i < len(cmds); i += 2 {
+		left := fmt.Sprintf("  %s%-10s%s %s%-16s%s", goBlueC, cmds[i].cmd, reset, gray, cmds[i].desc, reset)
+		right := ""
+		if i+1 < len(cmds) {
+			right = fmt.Sprintf("%s%-10s%s %s%s%s", goBlueC, cmds[i+1].cmd, reset, gray, cmds[i+1].desc, reset)
 		}
-		rpad := width - 2 - leftColWidth - rv
-		if rpad < 0 {
-			rpad = 0
-		}
-		fmt.Fprintf(w, "%s│%s%s%s%s%s%s│%s\n",
-			boxChar, reset, left, strings.Repeat(" ", lpad), right, strings.Repeat(" ", rpad), boxChar, reset)
+		fmt.Fprintf(w, "%s  %s\n", left, right)
 	}
 
-	printEmptyLine(w, width)
-	fmt.Fprintf(w, "%s╰%s╯%s\n\n", boxChar, strings.Repeat("─", width-2), reset)
-}
-
-func printPaddedLine(w io.Writer, content string, width int) {
-	vis := visibleLen(content)
-	pad := width - 2 - vis
-	if pad < 0 {
-		pad = 0
-	}
-	fmt.Fprintf(w, "%s│%s%s%s%s│%s\n", boxChar, reset, content, strings.Repeat(" ", pad), boxChar, reset)
-}
-
-func printEmptyLine(w io.Writer, width int) {
-	fmt.Fprintf(w, "%s│%s%s%s│%s\n", boxChar, reset, strings.Repeat(" ", width-2), boxChar, reset)
+	fmt.Fprintln(w)
+	fmt.Fprintf(w, "  %sTab%s %sswitch mode%s  %sCtrl+C%s %squit%s  %sCtrl+D%s %sEOF%s\n",
+		white+bold, reset, gray, reset,
+		white+bold, reset, gray, reset,
+		white+bold, reset, gray, reset)
+	fmt.Fprintf(w, "  %s%s%s\n", gray, strings.Repeat("─", 56), reset)
+	fmt.Fprintln(w)
 }
 
 // visibleLen returns the length of a string excluding ANSI escape codes.
