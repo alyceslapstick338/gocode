@@ -284,6 +284,9 @@ func (r *ConversationRuntime) CompactSession(preserveRecent int) {
 // GetUsage returns the cumulative usage tracker.
 func (r *ConversationRuntime) GetUsage() UsageTracker { return r.usage }
 
+// GetToolCb returns the tool callback for external wiring (e.g., spinner integration).
+func (r *ConversationRuntime) GetToolCb() ToolCallback { return r.toolCb }
+
 // GetSession returns the current conversation session.
 func (r *ConversationRuntime) GetSession() []apitypes.InputMessage { return r.session }
 

@@ -6,11 +6,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"os"
 	"strings"
 
 	"github.com/AlleyBo55/gocode/internal/agent"
 	"github.com/AlleyBo55/gocode/internal/apitypes"
 	"github.com/AlleyBo55/gocode/internal/initdeep"
+	"github.com/AlleyBo55/gocode/internal/skills"
 )
 
 // REPLConfig holds configuration for the REPL display.
@@ -27,16 +29,18 @@ type REPL struct {
 	writer  io.Writer
 	display *Display
 	config  REPLConfig
+	skills  []skills.Skill
 }
 
 // NewREPL creates a new REPL.
-func NewREPL(rt *agent.ConversationRuntime, r io.Reader, w io.Writer, cfg REPLConfig) *REPL {
+func NewREPL(rt *agent.ConversationRuntime, r io.Reader, w io.Writer, cfg REPLConfig, sk []skills.Skill) *REPL {
 	return &REPL{
 		runtime: rt,
 		reader:  r,
 		writer:  w,
 		display: NewDisplay(w),
 		config:  cfg,
+		skills:  sk,
 	}
 }
 
@@ -89,11 +93,20 @@ func (r *REPL) Run(ctx context.Context) error {
 				fmt.Fprintf(r.writer, "Created %d AGENTS.md files, skipped %d existing.\n", len(report.Created), len(report.Skipped))
 			}
 			continue
+		case CmdSkill:
+			r.handleSkillCommand(input)
+			continue
 		}
 
 		// Show spinner while waiting for LLM response
 		fmt.Fprintln(r.writer)
 		spin := NewSpinner(r.writer, "Thinking...")
+
+		// Wire spinner to tool callback so it stops during tool execution
+		if tcb, ok := r.runtime.GetToolCb().(*TerminalToolCallback); ok {
+			tcb.Spinner = spin
+		}
+
 		spin.Start()
 
 		resp, err := r.runtime.SendUserMessage(ctx, input)
@@ -111,13 +124,73 @@ func (r *REPL) Run(ctx context.Context) error {
 	}
 }
 
-// TerminalToolCallback updates the spinner during tool execution.
+// handleSkillCommand processes the /skill slash command.
+// With no arguments it lists all available skills.
+// With a skill name it activates that skill by injecting its system prompt.
+func (r *REPL) handleSkillCommand(input string) {
+	trimmed := strings.TrimSpace(input)
+	arg := strings.TrimSpace(strings.TrimPrefix(trimmed, "/skill"))
+
+	if arg == "" {
+		// List all available skills.
+		if len(r.skills) == 0 {
+			fmt.Fprintln(r.writer, "No skills available.")
+			return
+		}
+		fmt.Fprintln(r.writer, "Available skills:")
+		for _, s := range r.skills {
+			fmt.Fprintf(r.writer, "  %s%-20s%s %s\n", cGreen, s.Name, ansiReset, truncateSkillDesc(s.SystemPrompt, 80))
+		}
+		return
+	}
+
+	// Look up the skill by name.
+	var found *skills.Skill
+	for i := range r.skills {
+		if r.skills[i].Name == arg {
+			found = &r.skills[i]
+			break
+		}
+	}
+	if found == nil {
+		fmt.Fprintf(r.writer, "Unknown skill: %s. Use /skill to list available skills.\n", arg)
+		return
+	}
+
+	// Activate by injecting the skill's system prompt as a user message.
+	activationMsg := fmt.Sprintf("The following skill has been activated: %s. Apply these guidelines:\n\n%s", found.Name, found.SystemPrompt)
+	_, err := r.runtime.SendUserMessage(context.Background(), activationMsg)
+	if err != nil {
+		fmt.Fprintf(r.writer, "Error activating skill: %v\n", err)
+		return
+	}
+	fmt.Fprintf(r.writer, "Skill %s%s%s activated.\n", cGreen+ansiBold, found.Name, ansiReset)
+}
+
+// truncateSkillDesc shortens a string to maxLen characters, appending "..." if truncated.
+func truncateSkillDesc(s string, maxLen int) string {
+	// Collapse to single line for display.
+	s = strings.ReplaceAll(s, "\n", " ")
+	if len(s) <= maxLen {
+		return s
+	}
+	return s[:maxLen-3] + "..."
+}
+
+// TerminalToolCallback updates the terminal during tool execution.
+// It stops the spinner before showing tool progress.
 type TerminalToolCallback struct {
-	Writer io.Writer
+	Writer  io.Writer
+	Spinner *Spinner
 }
 
 func (t *TerminalToolCallback) OnToolStart(name string, input map[string]interface{}) {
-	fmt.Fprintf(t.Writer, "\r\033[K  %s⚡ Running %s%s...%s\n", cBlue, cWhite+ansiBold, name, ansiReset)
+	if t.Spinner != nil {
+		t.Spinner.Stop()
+	}
+	// Show tool name with key params for visibility
+	summary := summarizeToolInput(name, input)
+	fmt.Fprintf(t.Writer, "  %s⚡ %s%s%s %s\n", cBlue, cWhite+ansiBold, name, ansiReset, summary)
 }
 
 func (t *TerminalToolCallback) OnToolEnd(name string, success bool) {
@@ -126,6 +199,28 @@ func (t *TerminalToolCallback) OnToolEnd(name string, success bool) {
 	} else {
 		fmt.Fprintf(t.Writer, "  %s✗ %s%s\n", cRed, name, ansiReset)
 	}
+	// Restart spinner for the next LLM call
+	if t.Spinner != nil {
+		t.Spinner.Start()
+	}
+}
+
+// summarizeToolInput extracts the most useful param for display.
+func summarizeToolInput(name string, input map[string]interface{}) string {
+	if input == nil {
+		return ""
+	}
+	// Show the most relevant param based on tool type
+	for _, key := range []string{"path", "pattern", "command", "file", "name"} {
+		if v, ok := input[key]; ok {
+			s := fmt.Sprintf("%v", v)
+			if len(s) > 60 {
+				s = s[:57] + "..."
+			}
+			return cGray + s + ansiReset
+		}
+	}
+	return ""
 }
 
 // TerminalPermissionPrompter prompts the user in the terminal for permission.
@@ -199,12 +294,71 @@ func RunOneShot(ctx context.Context, rt *agent.ConversationRuntime, prompt strin
 }
 
 // BuildSystemPrompt constructs the system prompt for the agent.
+// Modeled after Claude Code's agentic behavior — proactive, autonomous, thorough.
 func BuildSystemPrompt(tools []apitypes.ToolDef) string {
-	var sb strings.Builder
-	sb.WriteString("You are gocode, an AI coding agent. You have access to the following tools:\n\n")
-	for _, t := range tools {
-		sb.WriteString(fmt.Sprintf("- %s: %s\n", t.Name, t.Description))
+	cwd, _ := os.Getwd()
+	osName := os.Getenv("OSTYPE")
+	if osName == "" {
+		osName = "unix"
 	}
-	sb.WriteString("\nUse tools to help the user with coding tasks. Be concise and helpful.")
-	return sb.String()
+	shell := os.Getenv("SHELL")
+	if shell == "" {
+		shell = "/bin/bash"
+	}
+
+	var toolList strings.Builder
+	for _, t := range tools {
+		toolList.WriteString(fmt.Sprintf("- %s: %s\n", t.Name, t.Description))
+	}
+
+	return fmt.Sprintf(`You are gocode, an interactive CLI tool that helps users with software engineering tasks. Use the instructions below and the tools available to you to assist the user.
+
+IMPORTANT: You should be proactive in accomplishing the task, not reactive. Do not wait for the user to ask you to do something that you can anticipate.
+
+# Tool Use
+
+You have tools at your disposal to solve the coding task. Follow these rules regarding tool calls:
+
+1. ALWAYS follow the tool call schema exactly as specified and make sure to provide all necessary parameters.
+2. The conversation may reference tools that are no longer available. NEVER call tools that are not explicitly provided.
+3. **NEVER refer to tool names when speaking to the user.** For example, instead of saying "I need to use the BashTool to run a command", just say "Let me run that command" or simply run it.
+4. Only call tools when they are necessary. If the user's task is conversational or does not require tool use, respond without calling tools.
+5. When you need information, prefer using tools over asking the user.
+
+# Tool Use Best Practices
+
+- When doing file search, prefer GrepTool for searching file contents and GlobTool for finding files by name pattern.
+- When reading files, always read the full file first unless you know the exact line range needed.
+- When you need to edit a file, ALWAYS read it first so you have the exact content for old_text matching.
+- When running commands with BashTool, prefer non-interactive commands. Avoid interactive commands that require user input.
+- When using BashTool, do not use commands that produce very large outputs. If needed, pipe to head or tail.
+
+# Making Code Changes
+
+When making code changes:
+
+1. Read the relevant file(s) first to understand the current code.
+2. Make the minimal necessary changes to accomplish the task.
+3. Ensure your changes are syntactically correct and follow the existing code style.
+4. After making changes, verify them if possible (e.g., run tests, check for syntax errors).
+5. NEVER leave placeholder comments like "// rest of code here" or "// existing code". Always include the complete code.
+
+# Communication Style
+
+1. Be concise and direct. Avoid unnecessary preamble or filler.
+2. When you have completed a task, briefly summarize what you did. Do not list every step.
+3. If something fails, explain what went wrong and what you tried.
+4. Use markdown formatting in responses when it improves readability.
+5. NEVER say "Let me know if you'd like me to..." or "Would you like me to..." — just do it.
+6. NEVER ask "Shall I proceed?" or "Should I continue?" — just proceed.
+
+# Environment
+
+- Working directory: %s
+- OS: %s
+- Shell: %s
+
+# Available Tools
+
+%s`, cwd, osName, shell, toolList.String())
 }

@@ -39,7 +39,7 @@ import (
 	"github.com/AlleyBo55/gocode/internal/tools"
 )
 
-var version = "v0.3.0"
+var version = "v0.3.1"
 
 // stdRecoveryLogger logs recovery events to stderr via the standard log package.
 type stdRecoveryLogger struct{}
@@ -67,29 +67,33 @@ func wireAdvancedTools(toolImpl *toolimpl.Registry, hashlineEnabled bool) func()
 	tmuxMgr := tmux.NewManager()
 	tmux.RegisterTmuxTools(toolImpl, tmuxMgr)
 
-	// Phase 3: MCP client tools (conditional — connect configured servers)
+	// Phase 3: MCP client tools (only if user has a .gocode/mcp.json config)
 	mcpConfigPath := filepath.Join(".gocode", "mcp.json")
-	mcpMgr, err := mcpclient.NewManager(mcpConfigPath)
-	if err != nil {
-		log.Printf("[mcpclient] failed to create manager: %v", err)
-		return tmuxMgr.KillAll
+	if _, statErr := os.Stat(mcpConfigPath); statErr == nil {
+		mcpMgr, err := mcpclient.NewManager(mcpConfigPath)
+		if err != nil {
+			log.Printf("[mcpclient] failed to create manager: %v", err)
+			return tmuxMgr.KillAll
+		}
+
+		// Best-effort connect — failures are logged, not fatal
+		if connectErr := mcpMgr.ConnectAll(); connectErr != nil {
+			log.Printf("[mcpclient] %v", connectErr)
+		}
+
+		// Register discovered MCP tools in the tool registry
+		for _, t := range mcpMgr.ListTools() {
+			toolName := t.Name
+			toolImpl.Set(toolName, &mcpToolAdapter{mgr: mcpMgr, toolName: toolName})
+		}
+
+		return func() {
+			tmuxMgr.KillAll()
+			mcpMgr.Close()
+		}
 	}
 
-	// Best-effort connect — failures are logged, not fatal
-	if connectErr := mcpMgr.ConnectAll(); connectErr != nil {
-		log.Printf("[mcpclient] %v", connectErr)
-	}
-
-	// Register discovered MCP tools in the tool registry
-	for _, t := range mcpMgr.ListTools() {
-		toolName := t.Name
-		toolImpl.Set(toolName, &mcpToolAdapter{mgr: mcpMgr, toolName: toolName})
-	}
-
-	return func() {
-		tmuxMgr.KillAll()
-		mcpMgr.Close()
-	}
+	return tmuxMgr.KillAll
 }
 
 // mcpToolAdapter adapts an MCP client tool call to the toolimpl.ToolExecutor interface.
@@ -517,6 +521,7 @@ func main() {
 			maxTokens, _ := cmd.Flags().GetInt("max-tokens")
 			apiKey, _ := cmd.Flags().GetString("api-key")
 			hashlineEnabled, _ := cmd.Flags().GetBool("hashline")
+			skillName, _ := cmd.Flags().GetString("skill")
 
 			provider, resolvedModel, err := apiclient.ResolveProvider(model, apiKey)
 			if err != nil {
@@ -544,9 +549,17 @@ func main() {
 			for _, e := range skillErrs {
 				log.Printf("[skills] %v", e)
 			}
-			log.Printf("[skills] loaded %d skills", len(loadedSkills))
 
 			systemPrompt := repl.BuildSystemPrompt(executor.ListTools())
+
+			// If --skill flag is provided, prepend the skill's system prompt
+			if skillName != "" {
+				sk, ok := skillLoader.GetSkill(skillName)
+				if !ok {
+					return fmt.Errorf("unknown skill: %s", skillName)
+				}
+				systemPrompt = sk.SystemPrompt + "\n\n" + systemPrompt
+			}
 
 			prompter := &repl.TerminalPermissionPrompter{
 				Scanner: bufio.NewScanner(os.Stdin),
@@ -554,6 +567,7 @@ func main() {
 			}
 
 			// Use FallbackProvider (which implements Provider) for the runtime
+			toolCb := &repl.TerminalToolCallback{Writer: os.Stdout}
 			rt := agent.NewConversationRuntime(agent.RuntimeOptions{
 				Provider:      fp,
 				Executor:      executor,
@@ -563,7 +577,7 @@ func main() {
 				SystemPrompt:  systemPrompt,
 				PermMode:      agent.WorkspaceWrite,
 				Prompter:      prompter,
-				ToolCb:        &repl.TerminalToolCallback{Writer: os.Stdout},
+				ToolCb:        toolCb,
 			})
 
 			// Phase 1: wrap runtime with SessionRecoveryManager
@@ -573,7 +587,7 @@ func main() {
 				Version:  version,
 				Model:    resolvedModel,
 				MaxTurns: maxTurns,
-			})
+			}, loadedSkills)
 			return r.Run(context.Background())
 		},
 	}
@@ -582,6 +596,7 @@ func main() {
 	chatCmd.Flags().Int("max-tokens", 8192, "Maximum output tokens per request")
 	chatCmd.Flags().String("api-key", "", "API key (overrides env vars)")
 	chatCmd.Flags().Bool("hashline", false, "Enable hashline mode for hash-anchored file I/O")
+	chatCmd.Flags().String("skill", "", "Activate a skill by name (prepends skill system prompt)")
 	rootCmd.AddCommand(chatCmd)
 
 	// 23. prompt — one-shot agent mode
@@ -596,6 +611,7 @@ func main() {
 			apiKey, _ := cmd.Flags().GetString("api-key")
 			noStream, _ := cmd.Flags().GetBool("no-stream")
 			hashlineEnabled, _ := cmd.Flags().GetBool("hashline")
+			skillName, _ := cmd.Flags().GetString("skill")
 
 			provider, resolvedModel, err := apiclient.ResolveProvider(model, apiKey)
 			if err != nil {
@@ -619,13 +635,21 @@ func main() {
 
 			// Phase 2: load skills on startup
 			skillLoader := skills.NewSkillLoader("")
-			loadedSkills, skillErrs := skillLoader.LoadAll()
+			_, skillErrs := skillLoader.LoadAll()
 			for _, e := range skillErrs {
 				log.Printf("[skills] %v", e)
 			}
-			log.Printf("[skills] loaded %d skills", len(loadedSkills))
 
 			systemPrompt := repl.BuildSystemPrompt(executor.ListTools())
+
+			// If --skill flag is provided, prepend the skill's system prompt
+			if skillName != "" {
+				sk, ok := skillLoader.GetSkill(skillName)
+				if !ok {
+					return fmt.Errorf("unknown skill: %s", skillName)
+				}
+				systemPrompt = sk.SystemPrompt + "\n\n" + systemPrompt
+			}
 
 			// Use FallbackProvider (which implements Provider) for the runtime
 			rt := agent.NewConversationRuntime(agent.RuntimeOptions{
@@ -650,6 +674,7 @@ func main() {
 	promptCmd.Flags().String("api-key", "", "API key (overrides env vars)")
 	promptCmd.Flags().Bool("no-stream", false, "Disable streaming output")
 	promptCmd.Flags().Bool("hashline", false, "Enable hashline mode for hash-anchored file I/O")
+	promptCmd.Flags().String("skill", "", "Activate a skill by name (prepends skill system prompt)")
 	rootCmd.AddCommand(promptCmd)
 
 	// 21. mcp-serve
