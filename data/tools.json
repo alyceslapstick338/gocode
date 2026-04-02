@@ -116,7 +116,7 @@
   {
     "name": "WebSearchTool",
     "responsibility": "search the web",
-    "description": "Search the web for information using DuckDuckGo. Returns abstracts, answers, and related topics. No API key required.",
+    "description": "Search for information using Wikipedia. Returns article summaries and related results. No API key required. Works out of the box.",
     "source_hint": "tools/web",
     "input_schema": {
       "type": "object",

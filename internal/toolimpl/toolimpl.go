@@ -517,7 +517,7 @@ func (t *WebFetchTool) Execute(params map[string]interface{}) ToolResult {
 
 // --- WebSearchTool ---
 
-// WebSearchTool performs a web search using DuckDuckGo's instant answer API.
+// WebSearchTool searches Wikipedia, GitHub, and Reddit in parallel. No API key required.
 type WebSearchTool struct{}
 
 func (t *WebSearchTool) Execute(params map[string]interface{}) ToolResult {
@@ -526,76 +526,222 @@ func (t *WebSearchTool) Execute(params map[string]interface{}) ToolResult {
 		return ToolResult{Success: false, Error: "missing required param: query"}
 	}
 
-	// Use DuckDuckGo instant answer API (no API key required)
-	searchURL := fmt.Sprintf("https://api.duckduckgo.com/?q=%s&format=json&no_html=1&skip_disambig=1",
-		strings.ReplaceAll(query, " ", "+"))
-
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	encodedQuery := strings.ReplaceAll(query, " ", "+")
+	ctx, cancel := context.WithTimeout(context.Background(), 12*time.Second)
 	defer cancel()
 
-	req, err := http.NewRequestWithContext(ctx, "GET", searchURL, nil)
-	if err != nil {
-		return ToolResult{Success: false, Error: fmt.Sprintf("creating request: %v", err)}
+	type sourceResult struct {
+		name    string
+		content string
+		err     error
 	}
-	req.Header.Set("User-Agent", "gocode/1.0")
 
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return ToolResult{Success: false, Error: fmt.Sprintf("search request failed: %v", err)}
-	}
-	defer resp.Body.Close()
+	ch := make(chan sourceResult, 3)
 
-	body := make([]byte, 32768) // 32KB max
-	n, _ := resp.Body.Read(body)
-	rawJSON := body[:n]
+	// Wikipedia search + summary
+	go func() {
+		content, err := searchWikipedia(ctx, encodedQuery)
+		ch <- sourceResult{"Wikipedia", content, err}
+	}()
 
-	// Parse DuckDuckGo response
-	var ddg struct {
-		Abstract       string `json:"Abstract"`
-		AbstractSource string `json:"AbstractSource"`
-		AbstractURL    string `json:"AbstractURL"`
-		Answer         string `json:"Answer"`
-		AnswerType     string `json:"AnswerType"`
-		Heading        string `json:"Heading"`
-		RelatedTopics  []struct {
-			Text     string `json:"Text"`
-			FirstURL string `json:"FirstURL"`
-		} `json:"RelatedTopics"`
-	}
+	// GitHub search
+	go func() {
+		content, err := searchGitHub(ctx, encodedQuery)
+		ch <- sourceResult{"GitHub", content, err}
+	}()
+
+	// Reddit search
+	go func() {
+		content, err := searchReddit(ctx, encodedQuery)
+		ch <- sourceResult{"Reddit", content, err}
+	}()
 
 	var sb strings.Builder
-	if json.Unmarshal(rawJSON, &ddg) == nil {
-		if ddg.Heading != "" {
-			sb.WriteString(fmt.Sprintf("# %s\n\n", ddg.Heading))
-		}
-		if ddg.Abstract != "" {
-			sb.WriteString(fmt.Sprintf("%s\nSource: %s (%s)\n\n", ddg.Abstract, ddg.AbstractSource, ddg.AbstractURL))
-		}
-		if ddg.Answer != "" {
-			sb.WriteString(fmt.Sprintf("Answer: %s\n\n", ddg.Answer))
-		}
-		if len(ddg.RelatedTopics) > 0 {
-			sb.WriteString("Related:\n")
-			limit := 8
-			if len(ddg.RelatedTopics) < limit {
-				limit = len(ddg.RelatedTopics)
-			}
-			for i := 0; i < limit; i++ {
-				rt := ddg.RelatedTopics[i]
-				if rt.Text != "" {
-					sb.WriteString(fmt.Sprintf("- %s\n  %s\n", rt.Text, rt.FirstURL))
-				}
-			}
+	sb.WriteString(fmt.Sprintf("Search results for: %s\n\n", query))
+
+	for i := 0; i < 3; i++ {
+		r := <-ch
+		if r.err == nil && r.content != "" {
+			sb.WriteString(fmt.Sprintf("--- %s ---\n%s\n\n", r.name, r.content))
 		}
 	}
 
 	result := sb.String()
-	if result == "" {
-		// Fallback: return raw response snippet
-		result = fmt.Sprintf("Search results for %q (raw):\n%s", query, string(rawJSON[:min(n, 2048)]))
+	if len(result) < 50 {
+		return ToolResult{Success: true, Output: fmt.Sprintf("No results found for %q across Wikipedia, GitHub, and Reddit.", query)}
+	}
+	return ToolResult{Success: true, Output: result}
+}
+
+func searchWikipedia(ctx context.Context, query string) (string, error) {
+	searchURL := fmt.Sprintf("https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=%s&format=json&srlimit=3", query)
+	req, err := http.NewRequestWithContext(ctx, "GET", searchURL, nil)
+	if err != nil {
+		return "", err
+	}
+	req.Header.Set("User-Agent", "gocode/1.0 (https://github.com/AlleyBo55/gocode)")
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+
+	body := make([]byte, 32768)
+	n, _ := resp.Body.Read(body)
+
+	var sr struct {
+		Query struct {
+			Search []struct {
+				Title   string `json:"title"`
+				Snippet string `json:"snippet"`
+			} `json:"search"`
+		} `json:"query"`
+	}
+	if err := json.Unmarshal(body[:n], &sr); err != nil || len(sr.Query.Search) == 0 {
+		return "", fmt.Errorf("no results")
 	}
 
-	return ToolResult{Success: true, Output: result}
+	// Get summary of top result
+	topTitle := strings.ReplaceAll(sr.Query.Search[0].Title, " ", "_")
+	sumURL := fmt.Sprintf("https://en.wikipedia.org/api/rest_v1/page/summary/%s", topTitle)
+	sumReq, _ := http.NewRequestWithContext(ctx, "GET", sumURL, nil)
+	sumReq.Header.Set("User-Agent", "gocode/1.0 (https://github.com/AlleyBo55/gocode)")
+	sumResp, err := http.DefaultClient.Do(sumReq)
+	if err != nil {
+		return "", err
+	}
+	defer sumResp.Body.Close()
+
+	sumBody := make([]byte, 32768)
+	sn, _ := sumResp.Body.Read(sumBody)
+
+	var summary struct {
+		Title   string `json:"title"`
+		Extract string `json:"extract"`
+	}
+	if json.Unmarshal(sumBody[:sn], &summary) == nil && summary.Extract != "" {
+		result := fmt.Sprintf("%s\n%s\nhttps://en.wikipedia.org/wiki/%s", summary.Title, summary.Extract, topTitle)
+		// Add other results
+		for i := 1; i < len(sr.Query.Search); i++ {
+			snippet := stripHTML(sr.Query.Search[i].Snippet)
+			result += fmt.Sprintf("\n- %s: %s", sr.Query.Search[i].Title, snippet)
+		}
+		return result, nil
+	}
+	return "", fmt.Errorf("no summary")
+}
+
+func searchGitHub(ctx context.Context, query string) (string, error) {
+	url := fmt.Sprintf("https://api.github.com/search/repositories?q=%s&per_page=5&sort=stars", query)
+	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+	if err != nil {
+		return "", err
+	}
+	req.Header.Set("Accept", "application/vnd.github.v3+json")
+	req.Header.Set("User-Agent", "gocode/1.0")
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+
+	body := make([]byte, 32768)
+	n, _ := resp.Body.Read(body)
+
+	var gr struct {
+		TotalCount int `json:"total_count"`
+		Items      []struct {
+			FullName    string `json:"full_name"`
+			Description string `json:"description"`
+			Stars       int    `json:"stargazers_count"`
+			HTMLURL     string `json:"html_url"`
+			Language    string `json:"language"`
+		} `json:"items"`
+	}
+	if err := json.Unmarshal(body[:n], &gr); err != nil || len(gr.Items) == 0 {
+		return "", fmt.Errorf("no results")
+	}
+
+	var sb strings.Builder
+	for _, item := range gr.Items {
+		desc := item.Description
+		if len(desc) > 120 {
+			desc = desc[:120] + "..."
+		}
+		lang := ""
+		if item.Language != "" {
+			lang = fmt.Sprintf(" [%s]", item.Language)
+		}
+		sb.WriteString(fmt.Sprintf("⭐ %d  %s%s\n  %s\n  %s\n", item.Stars, item.FullName, lang, desc, item.HTMLURL))
+	}
+	return sb.String(), nil
+}
+
+func searchReddit(ctx context.Context, query string) (string, error) {
+	url := fmt.Sprintf("https://www.reddit.com/search.json?q=%s&limit=5&sort=relevance", query)
+	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+	if err != nil {
+		return "", err
+	}
+	req.Header.Set("User-Agent", "gocode/1.0 (https://github.com/AlleyBo55/gocode)")
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+
+	body := make([]byte, 32768)
+	n, _ := resp.Body.Read(body)
+
+	var rr struct {
+		Data struct {
+			Children []struct {
+				Data struct {
+					Title     string  `json:"title"`
+					Subreddit string  `json:"subreddit_name_prefixed"`
+					Score     int     `json:"score"`
+					URL       string  `json:"url"`
+					Selftext  string  `json:"selftext"`
+					NumComments int   `json:"num_comments"`
+				} `json:"data"`
+			} `json:"children"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(body[:n], &rr); err != nil || len(rr.Data.Children) == 0 {
+		return "", fmt.Errorf("no results")
+	}
+
+	var sb strings.Builder
+	for _, child := range rr.Data.Children {
+		d := child.Data
+		selftext := d.Selftext
+		if len(selftext) > 150 {
+			selftext = selftext[:150] + "..."
+		}
+		sb.WriteString(fmt.Sprintf("↑%d 💬%d  %s  %s\n", d.Score, d.NumComments, d.Subreddit, d.Title))
+		if selftext != "" {
+			sb.WriteString(fmt.Sprintf("  %s\n", selftext))
+		}
+		sb.WriteString(fmt.Sprintf("  %s\n", d.URL))
+	}
+	return sb.String(), nil
+}
+
+// stripHTML removes HTML tags from a string.
+func stripHTML(s string) string {
+	for strings.Contains(s, "<") {
+		start := strings.Index(s, "<")
+		end := strings.Index(s, ">")
+		if end > start {
+			s = s[:start] + s[end+1:]
+		} else {
+			break
+		}
+	}
+	return s
 }
 
 // --- helpers ---

@@ -20,12 +20,7 @@
   <img src="assets/screen1.png" alt="gocode terminal screenshot" width="700" />
 </p>
 
-<h3 align="center">The Go version of Claude Code. One binary. Zero dependencies. 20× faster.<br/>Now with multi-agent orchestration, model fallback, and IDE-level tools — from your terminal.</h3>
-
-<p align="center">
-  <strong>An open-source Go reimplementation of the Claude Code AI coding agent.</strong><br/>
-  We took the Claude Code architecture — the AI agent runtime that powers tool orchestration, session management, and prompt routing — and rebuilt every subsystem in Go. Then we went further: multi-model support, multi-agent orchestration, model fallback chains, IDE-level tooling, and a skills system. One binary, any LLM, instant startup.
-</p>
+<h3 align="center">One binary. Zero dependencies. 200+ models. A team of agents.<br/>This is what an AI coding agent should feel like.</h3>
 
 <p align="center">
   <code>go install github.com/AlleyBo55/gocode/cmd/gocode@latest</code>
@@ -37,210 +32,48 @@
 
 Every great product starts with a simple observation.
 
-Claude Code is a remarkable piece of engineering. The way it decomposes tool orchestration. The way it manages sessions. The way it routes prompts. The architecture is elegant. The ideas are right.
-
-But the implementation carries weight it doesn't need. And it only works with Claude.
+Claude Code is a remarkable piece of engineering. But the implementation carries weight it doesn't need. And it only works with Claude.
 
 We asked two questions: **what if the best AI coding agent was also the fastest?** And **what if it worked with any model?**
 
-Not a wrapper. Not a thin binding. A complete, ground-up reimplementation in Go — every registry, every scoring algorithm, every subsystem — enhanced with multi-model support, a standalone terminal agent, a production-grade MCP server, and native IDE integrations that the original never had.
+A complete, ground-up reimplementation in Go — every registry, every scoring algorithm, every subsystem — enhanced with multi-model support, multi-agent orchestration, model fallback chains, IDE-level tooling, and a skills system. One binary, any LLM, instant startup.
 
-gocode starts in under 10 milliseconds. It ships as a single 12MB binary. It works with Claude, GPT-4o, Gemini, and Grok. You download it. You run it. That's it.
+gocode starts in under 10 milliseconds. Ships as a single 12MB binary. Works with 200+ models across 11 providers. You download it. You run it. That's it.
+
+---
+
+## What's New
+
+### v0.8.0 — Every Model. Every Provider. One Binary.
+
+We ripped out the four-provider ceiling and replaced it with a universal model layer. 200+ models. 11 providers. Local inference. Persistent memory. Task management. Runtime hardening. The agent can search the web, delegate to specialists, and remember what you told it last week.
+
+### v0.7.0 — The Agent Operating System
+
+Full terminal UI. Multi-agent orchestration. Model fallback. 21 slash commands. Skills system. Plugin architecture. LSP integration. AST-grep. Everything Claude Code does, plus everything it doesn't.
+
+### v0.3.0 — The Foundation
+
+38 internal packages. 14 MCP tools. 5 IDEs. 4 providers. One binary. The complete Go reimplementation of Claude Code.
+
+> **[Full Changelog →](CHANGELOG.md)**
 
 ---
 
 ## Two Modes. One Binary.
 
-gocode does something no other tool does: it's both a **standalone AI coding agent** and a **full MCP server** in a single 12MB binary.
-
 | Mode | What It Does | How You Use It |
 |------|-------------|----------------|
-| **Agent Mode (TUI)** | Full terminal UI with split panels, diff viewer, streaming. Talk to any LLM. | `gocode chat` |
-| **Agent Mode (REPL)** | Line-based chat for scripts and pipes. | `gocode chat --no-tui` |
+| **Agent Mode (REPL)** | Line-based chat. Default mode. | `gocode chat` |
+| **Agent Mode (TUI)** | Full terminal UI with split panels, diff viewer, themes. | `gocode chat --tui` |
 | **API Server Mode** | Headless HTTP REST API for remote clients. | `gocode serve` |
 | **MCP Server Mode** | Plug into Cursor, Kiro, VS Code, Antigravity, or Claude Desktop. | `gocode mcp-serve` |
-
-You don't have to choose. You get both.
-
----
-
-## What's New in v0.8.0
-
-This changes everything. Again.
-
-### 🌍 200+ Models. One Binary.
-
-We ripped out the four-provider ceiling and replaced it with a universal model layer. Anthropic, OpenAI, Google, xAI — those are still native. But now DeepSeek, Mistral, Groq, Together AI, OpenRouter, Azure OpenAI, and any local model running on Ollama or LM Studio just work. Set one env var. Pick a model. That's it.
-
-> **[Full Model List →](docs/supported-models.md)**
-
-### 🎯 Provider Launch Profiles
-
-`gocode profile auto --goal coding` — scans your env vars, picks the best provider and model for your goal, saves it. `profile recommend` previews without saving. `profile init` creates a default. Your workflow, your rules.
-
-### 🧠 Persistent Memory
-
-Cross-session memory that survives between conversations. `/memory set preferred-lang Go` and it remembers forever. Injected into every system prompt automatically.
-
-### 📋 Task Management
-
-`/tasks add Fix the auth bug` — persistent task tracking across sessions. `/tasks list`, `/tasks done 1`. Stays on disk in `.gocode/tasks.json`.
-
-### 💻 Codex Backend
-
-Route through ChatGPT's Codex backend with auth from `~/.codex/auth.json`. `gocode chat --model codex` just works.
-
-### 🔒 Runtime Hardening
-
-`gocode smoke` — quick runtime smoke test. `gocode hardening` — checks file permissions, API key exposure in shell history, config security. `gocode doctor` now checks all 10 provider env vars plus Codex auth.
-
-### 🌐 WebFetch & WebSearch Tools
-
-Built-in web fetch and web search tools in the tool registry. The agent can browse the web without MCP.
-
-### 📝 /commit with Co-Authored-By
-
-`/commit` auto-generates commit messages and adds `Co-Authored-By: gocode` attribution.
-
-### 🎯 Goal-Based Model Selection
-
-`--goal coding` picks the best coding model. `--goal latency` picks the fastest. `--goal balanced` splits the difference. Works across all providers.
-
----
-
-## What's in v0.7.0
-
-We took the best ideas from Claude Code, OpenCode, and Claw Code — and built them all in Go. One binary. Every feature.
-
-### 🖥 Full Terminal UI
-
-A bubbletea-powered TUI launches by default. Split panels, colored diff viewer, mode switching, Go-themed design.
-
-- Chat panel on the left, git diff viewer on the right (Ctrl+D to toggle)
-- Tab to switch between Build mode (full access) and Plan mode (read-only)
-- 4 built-in themes: `golang`, `monokai`, `dracula`, `nord`
-- Custom themes via `.gocode/theme.json`
-
-```bash
-gocode chat --model sonnet              # TUI launches by default
-gocode chat --model gpt5 --theme nord   # with Nord theme
-gocode chat --no-tui                    # fall back to line-based REPL
-```
-
-### 🧠 It Never Stops
-
-Model hits a rate limit? Falls through to the next in the chain. Context window full? Compacts and keeps going. API down? Exponential backoff, three retries, automatic recovery.
-
-### 🤝 It Delegates
-
-The orchestrator breaks complex tasks into pieces and hands them to specialists — a deep researcher, a planner, a debugger — each with its own model, context, and tool permissions. Up to five agents running in parallel.
-
-### 🔧 IDE-Level Tools + Auto-Format
-
-LSP integration, AST-grep, tmux sessions, MCP client. Plus auto-format after every edit — gofmt, prettier, black, rustfmt.
-
-### 🌐 HTTP API Server + Remote Access
-
-```bash
-gocode serve --addr :3000           # headless API server
-gocode auth generate my-phone       # secure remote access
-```
-
-### 🖼 Multimodal Input
-
-Include an image path in your message — it gets base64-encoded and sent as vision input. Works in both REPL and TUI.
-
-### 📋 21 Slash Commands
-
-`/help` `/exit` `/clear` `/compact` `/cost` `/model` `/skill` `/plan` `/init-deep` `/diff` `/undo` `/redo` `/status` `/review` `/permissions` `/doctor` `/connect` `/share` `/commit` `/memory` `/tasks`
-
-### 🔧 CLI Commands
-
-| Command | What It Does |
-|---------|-------------|
-| `gocode serve` | Headless HTTP API server |
-| `gocode stats` | Usage statistics across all sessions |
-| `gocode export/import` | Session import/export |
-| `gocode pr` | Create GitHub PR via `gh` CLI |
-| `gocode github` | List GitHub issues via `gh` CLI |
-| `gocode auth` | Manage remote access keys |
-| `gocode profile` | Launch profiles — init, auto, recommend, show |
-| `gocode doctor` | Environment check (10 providers + Codex auth) |
-| `gocode smoke` | Quick runtime smoke test |
-| `gocode hardening` | Security and permissions audit |
-| `gocode config` | Show current runtime configuration |
-
-> **[Advanced Features →](docs/advanced-features.md)** · **[UX Features →](docs/ux-features.md)**
-
----
-
-## Skills — Expertise on Demand
-
-Here's the thing about coding agents: they're generalists. They know a little about everything and a lot about nothing. That's fine for "add a comment to line 42." It's not fine for "build me a pixel-perfect clone of this website" or "refactor this Go codebase to follow idiomatic error handling."
-
-Skills change that. One flag, and your agent becomes a specialist.
-
-```bash
-gocode chat --skill golang-best-practices    # now it writes Go like a senior engineer
-gocode chat --skill nothing-design           # now it designs like Teenage Engineering
-gocode chat --skill clone-website            # now it reverse-engineers websites
-```
-
-Or switch mid-session:
-
-```
-you> /skill react-best-practices
-Skill react-best-practices activated.
-you> review this component for performance issues
-```
-
-### 8 Built-in Skills
-
-| Skill | What It Does | Activate With |
-|-------|-------------|---------------|
-| `git-master` | Atomic commits, interactive rebase, clean history | `--skill git-master` |
-| `frontend-ui-ux` | Design-first UI development, accessibility, semantic HTML | `--skill frontend-ui-ux` |
-| `nothing-design` | Nothing-inspired monochrome design system. Swiss typography, OLED blacks, mechanical precision. | `--skill nothing-design` |
-| `golang-best-practices` | Idiomatic Go — code style, error handling, testing patterns, naming conventions | `--skill golang-best-practices` |
-| `clone-website` | Pixel-perfect website cloning. Extract CSS, download assets, rebuild in Next.js. | `--skill clone-website` |
-| `nextjs-best-practices` | Next.js 15+ patterns — RSC boundaries, async APIs, data fetching, route handlers | `--skill nextjs-best-practices` |
-| `react-best-practices` | React performance optimization — eliminate waterfalls, bundle size, re-render patterns | `--skill react-best-practices` |
-| `web-design-guidelines` | Accessibility audit, responsive design, interaction states, WCAG compliance | `--skill web-design-guidelines` |
-
-### Create Your Own
-
-Drop a JSON file in `.gocode/skills/`:
-
-```json
-{
-  "name": "my-skill",
-  "system_prompt": "You are an expert in...",
-  "tool_permissions": ["bashtool", "filereadtool", "fileedittool"]
-}
-```
-
-It loads automatically on next startup.
-
-### Community Skills — Standing on the Shoulders of Giants
-
-The built-in skills are distilled from these open-source projects. We're grateful to the authors who shared their expertise with the community:
-
-| Skill | Inspired By | Author |
-|-------|------------|--------|
-| `nothing-design` | [nothing-design-skill](https://github.com/dominikmartn/nothing-design-skill) | [@dominikmartn](https://github.com/dominikmartn) |
-| `golang-best-practices` | [cc-skills-golang](https://github.com/samber/cc-skills-golang) | [@samber](https://github.com/samber) |
-| `clone-website` | [ai-website-cloner-template](https://github.com/JCodesMore/ai-website-cloner-template) | [@JCodesMore](https://github.com/JCodesMore) |
-| `nextjs-best-practices` | [claude-code-nextjs-skills](https://github.com/laguagu/claude-code-nextjs-skills) | [@laguagu](https://github.com/laguagu) |
-| `react-best-practices` | [claude-code-nextjs-skills](https://github.com/laguagu/claude-code-nextjs-skills) | [@laguagu](https://github.com/laguagu) |
-| `web-design-guidelines` | [claude-code-nextjs-skills](https://github.com/laguagu/claude-code-nextjs-skills) | [@laguagu](https://github.com/laguagu) |
 
 ---
 
 ## Supported Models
 
-Every model. Every provider. One binary.
-
-We don't lock you in. We don't pick your model for you. We give you the keys to every model worth using — from the frontier labs to the open-source community to the server running under your desk.
+Every model. Every provider. One binary. We don't lock you in.
 
 **4 native providers. 7 proxy services. Local inference. 200+ models.** Set one env var and go.
 
@@ -271,6 +104,44 @@ gocode chat --goal coding           # auto-pick the best coding model
 
 ---
 
+## Skills — Expertise on Demand
+
+Coding agents are generalists. Skills change that. One flag, and your agent becomes a specialist.
+
+```bash
+gocode chat --skill golang-best-practices    # writes Go like a senior engineer
+gocode chat --skill nothing-design           # designs like Teenage Engineering
+gocode chat --skill clone-website            # reverse-engineers websites
+```
+
+### 8 Built-in Skills
+
+| Skill | What It Does |
+|-------|-------------|
+| `git-master` | Atomic commits, interactive rebase, clean history |
+| `frontend-ui-ux` | Design-first UI development, accessibility, semantic HTML |
+| `nothing-design` | Nothing-inspired monochrome design. Swiss typography, OLED blacks. |
+| `golang-best-practices` | Idiomatic Go — code style, error handling, testing, naming |
+| `clone-website` | Pixel-perfect website cloning. Extract CSS, rebuild in Next.js. |
+| `nextjs-best-practices` | Next.js 15+ patterns — RSC, async APIs, data fetching |
+| `react-best-practices` | React performance — eliminate waterfalls, bundle size, re-renders |
+| `web-design-guidelines` | Accessibility audit, responsive design, WCAG compliance |
+
+Create your own — drop a JSON file in `.gocode/skills/`.
+
+### Community Skills — Standing on the Shoulders of Giants
+
+| Skill | Inspired By | Author |
+|-------|------------|--------|
+| `nothing-design` | [nothing-design-skill](https://github.com/dominikmartn/nothing-design-skill) | [@dominikmartn](https://github.com/dominikmartn) |
+| `golang-best-practices` | [cc-skills-golang](https://github.com/samber/cc-skills-golang) | [@samber](https://github.com/samber) |
+| `clone-website` | [ai-website-cloner-template](https://github.com/JCodesMore/ai-website-cloner-template) | [@JCodesMore](https://github.com/JCodesMore) |
+| `nextjs-best-practices` | [claude-code-nextjs-skills](https://github.com/laguagu/claude-code-nextjs-skills) | [@laguagu](https://github.com/laguagu) |
+| `react-best-practices` | [claude-code-nextjs-skills](https://github.com/laguagu/claude-code-nextjs-skills) | [@laguagu](https://github.com/laguagu) |
+| `web-design-guidelines` | [claude-code-nextjs-skills](https://github.com/laguagu/claude-code-nextjs-skills) | [@laguagu](https://github.com/laguagu) |
+
+---
+
 ## Installation
 
 ### One-Line Install (macOS / Linux)
@@ -279,15 +150,11 @@ gocode chat --goal coding           # auto-pick the best coding model
 curl -fsSL https://raw.githubusercontent.com/AlleyBo55/gocode/main/install.sh | bash
 ```
 
-Downloads the latest release binary for your platform and installs to `/usr/local/bin`. No Go required.
-
 ### One-Line Install (Windows PowerShell)
 
 ```powershell
 irm https://raw.githubusercontent.com/AlleyBo55/gocode/main/install.ps1 | iex
 ```
-
-Or download manually — see below.
 
 ### Go Install (all platforms, requires Go 1.21+)
 
@@ -308,24 +175,6 @@ Grab the binary for your platform from [GitHub Releases](https://github.com/Alle
 | Windows (x86_64) | `gocode_*_windows_amd64.zip` |
 | Windows (ARM64) | `gocode_*_windows_arm64.zip` |
 
-**macOS / Linux:**
-
-```bash
-# Example: macOS Apple Silicon
-curl -fsSL https://github.com/AlleyBo55/gocode/releases/latest/download/gocode_darwin_arm64.tar.gz | tar xz
-sudo mv gocode /usr/local/bin/
-```
-
-**Windows (PowerShell):**
-
-```powershell
-# Download and extract
-Invoke-WebRequest -Uri "https://github.com/AlleyBo55/gocode/releases/latest/download/gocode_windows_amd64.zip" -OutFile gocode.zip
-Expand-Archive gocode.zip -DestinationPath .
-# Move to a directory in your PATH, e.g.:
-Move-Item gocode.exe "$env:LOCALAPPDATA\Microsoft\WindowsApps\gocode.exe"
-```
-
 ### Linux Packages (deb/rpm)
 
 ```bash
@@ -338,16 +187,16 @@ curl -fsSL https://github.com/AlleyBo55/gocode/releases/latest/download/gocode_a
 sudo rpm -i gocode.rpm
 ```
 
-### Build from Source (all platforms)
+### Build from Source
 
 ```bash
 git clone https://github.com/AlleyBo55/gocode.git
 cd gocode
-go build -o gocode ./cmd/gocode/    # on Windows: go build -o gocode.exe ./cmd/gocode/
-sudo mv gocode /usr/local/bin/       # on Windows: move to a PATH directory
+go build -o gocode ./cmd/gocode/
+sudo mv gocode /usr/local/bin/
 ```
 
-### Verify Installation
+### Verify
 
 ```bash
 gocode --version
@@ -356,106 +205,23 @@ gocode --version
 
 ---
 
-## Quickstart — 60 Seconds to Your First Agent Session
+## Quickstart
 
 ```bash
 # 1. Install
 go install github.com/AlleyBo55/gocode/cmd/gocode@latest
 
-# 2. Set your API key (pick your provider)
-export ANTHROPIC_API_KEY=sk-ant-...    # Claude
-export OPENAI_API_KEY=sk-...           # GPT-4o
-export GEMINI_API_KEY=AI...            # Gemini
-export XAI_API_KEY=xai-...             # Grok
+# 2. Set your API key
+export ANTHROPIC_API_KEY=sk-ant-...
 
 # 3. Chat
 gocode chat
 
-# Or run a one-shot prompt
-gocode prompt "find all TODO comments in this project and list them"
+# Or one-shot
+gocode prompt "find all TODO comments in this project"
 ```
 
-That's it. No Python. No Node. No virtual environments. No config files. One binary, one env var, go.
-
----
-
-## What Can gocode Do?
-
-### As a Standalone Agent (`gocode chat` / `gocode prompt`)
-
-- 🤖 **Autonomous coding** — reads your codebase, writes code, runs tests, fixes bugs
-- 🔄 **Multi-turn tool loops** — Claude/GPT/Gemini calls tools, gets results, keeps going until done
-- 🌊 **Real-time streaming** — see tokens as they arrive, not after the model finishes thinking
-- 🔐 **Permission system** — asks before running dangerous commands
-- 💰 **Token tracking** — `/cost` shows exactly how many tokens you've used
-- 📝 **Session persistence** — resume conversations with `--resume`
-- 🔀 **Model switching** — `--model gpt4o` today, `--model sonnet` tomorrow, same agent
-- 🛡 **Hash-anchored edits** — content hashes prevent stale overwrites (`--hashline`)
-- 🔁 **Model fallback** — automatic failover across providers on rate limits and errors
-- 🧠 **Multi-agent orchestration** — delegate to specialist sub-agents running in parallel
-- 📋 **Planning mode** — `/plan` runs an interview before any code is touched
-- 🎯 **Skills system** — domain-tuned agent profiles from `.gocode/skills/`
-- 🔬 **LSP integration** — real renames, go-to-definition, find-references via language servers
-- 🌳 **AST-grep** — structural code search and rewrite, not regex
-- 💻 **Tmux sessions** — persistent terminal sessions for REPLs and debuggers
-- 🔌 **MCP client** — connect to external MCP servers for web search, docs, code search
-- 📚 **Auto-context** — `/init-deep` generates project-wide AGENTS.md context files
-- 🖥 **Full TUI** — bubbletea terminal UI with split panels, diff viewer, themes
-- 🖼 **Multimodal** — send images inline with your messages
-- 🌐 **HTTP API** — `gocode serve` for remote access from any client
-- 🔑 **Auth keys** — secure remote access with `gocode auth generate`
-- 🎨 **Themes** — golang, monokai, dracula, nord (or custom via JSON)
-- ✨ **Auto-format** — gofmt, prettier, black, rustfmt after every edit
-- 📊 **GitHub integration** — `gocode pr` and `gocode github` via gh CLI
-
-### As an MCP Server (`gocode mcp-serve`)
-
-- 🔌 **14 production tools** — shell, file I/O, grep, glob, workspace analysis
-- 💻 **5 IDEs supported** — Cursor, Kiro, VS Code, Antigravity, Claude Desktop
-- 🌐 **Dual transport** — stdio for IDEs, HTTP for anything else
-- 📋 **Full MCP compliance** — initialize, tools/list, tools/call, ping, resources/list
-
-### The Numbers
-
-| Metric | Value |
-|--------|-------|
-| Startup time | **<10ms** |
-| Binary size | **~12MB** |
-| Runtime dependencies | **None** |
-| Supported LLM providers | **11** (Anthropic, OpenAI, Google, xAI, DeepSeek, Mistral, Groq, Together, OpenRouter, Azure, Local) |
-| Supported IDEs | **5** (Cursor, Kiro, VS Code, Antigravity, Claude Desktop) |
-| MCP tools | **14 built-in + external via MCP client** |
-| Internal packages | **38** |
-| Built-in agent profiles | **4** (coordinator, deep-worker, planner, debugger) |
-| Built-in skills | **8** (git-master, frontend-ui-ux, nothing-design, golang, clone-website, nextjs, react, web-design) |
-| Max concurrent background agents | **5** |
-
----
-
-## Documentation
-
-| Guide | Description |
-|-------|-------------|
-| 📖 **[Agent Mode Guide](docs/agent-mode.md)** | How to use `gocode chat` and `gocode prompt` — models, API keys, flags, slash commands, examples |
-| 🌍 **[Supported Models](docs/supported-models.md)** | Full list of 200+ supported models across 11 providers — aliases, env vars, local setup |
-| 🚀 **[Advanced Features](docs/advanced-features.md)** | Multi-agent orchestration, model fallback, planning mode, skills, LSP, AST-grep, tmux, MCP client, context generation |
-| 🎨 **[UX Features](docs/ux-features.md)** | Streaming responses, thinking blocks, slash commands, GOCODE.md project config, git context, cost estimation |
-| 🔌 **[MCP & IDE Integration Guide](docs/mcp-ide-guide.md)** | How to connect gocode to Cursor, Kiro, VS Code, Antigravity, Claude Desktop |
-| 🏗 **[Architecture](docs/architecture.md)** | Internal package structure, system diagrams, design decisions |
-| 📚 **[CLI Reference](docs/cli-reference.md)** | Full list of all CLI commands with flags and examples |
-
----
-
-## Contributing
-
-```bash
-git clone https://github.com/AlleyBo55/gocode.git
-cd gocode
-make test    # Run all tests
-make build   # Build the binary
-```
-
-Open a PR. Start a discussion. File an issue. Every contribution makes gocode better.
+No Python. No Node. No virtual environments. One binary, one env var, go.
 
 ---
 
@@ -466,26 +232,47 @@ Open a PR. Start a discussion. File an issue. Every contribution makes gocode be
 | Startup time | ~200ms | **<10ms** (20× faster) |
 | Binary size | N/A (interpreted) | **~12MB** (single file) |
 | Runtime dependencies | Python 3.10+, pip, venv | **None** |
-| LLM providers | Claude only | **Claude, GPT-5.4, Gemini 3.1, Grok 4.20 + 200 more** |
+| LLM providers | Claude only | **200+ models, 11 providers** |
 | Deployment | `pip install` + virtualenv | **Copy one file** |
-| Concurrency model | asyncio / threading | **Goroutines + channels** |
+| Concurrency | asyncio / threading | **Goroutines + channels** |
 | MCP compliance | N/A | **Full specification** |
-| IDE integrations | N/A | **5 IDEs supported** |
-| Standalone agent | Yes (Claude only) | **Yes (any model)** |
-| Multi-agent orchestration | No | **Yes (4 built-in profiles)** |
+| IDE integrations | N/A | **5 IDEs** |
+| Multi-agent | No | **Yes (4 profiles, 5 concurrent)** |
 | Model fallback | No | **Yes (automatic failover)** |
-| Planning mode | No | **Yes (`/plan` command)** |
-| Skills system | No | **Yes (8 built-in + custom JSON profiles)** |
-| LSP integration | No | **Yes (rename, definition, references)** |
-| MCP client | No | **Yes (connect to external servers)** |
+| Skills system | No | **Yes (8 built-in + custom)** |
+| Web search | No | **Yes (built-in, no API key)** |
+| Persistent memory | No | **Yes (cross-session)** |
+
+---
+
+## Documentation
+
+| Guide | Description |
+|-------|-------------|
+| 📖 **[Agent Mode Guide](docs/agent-mode.md)** | Models, API keys, flags, slash commands, examples |
+| 🌍 **[Supported Models](docs/supported-models.md)** | 200+ models across 11 providers |
+| 🚀 **[Advanced Features](docs/advanced-features.md)** | Multi-agent, fallback, planning, skills, LSP, AST-grep |
+| 🎨 **[UX Features](docs/ux-features.md)** | Streaming, thinking blocks, slash commands, cost estimation |
+| 🔌 **[MCP & IDE Guide](docs/mcp-ide-guide.md)** | Cursor, Kiro, VS Code, Antigravity, Claude Desktop |
+| 🏗 **[Architecture](docs/architecture.md)** | Internal packages, system diagrams, design decisions |
+| 📚 **[CLI Reference](docs/cli-reference.md)** | All CLI commands with flags and examples |
+| 📋 **[Changelog](CHANGELOG.md)** | Full version history |
+
+---
+
+## Contributing
+
+```bash
+git clone https://github.com/AlleyBo55/gocode.git
+cd gocode
+make test && make build
+```
 
 ---
 
 ## Search Keywords
 
-gocode is the **Go version of Claude Code** — if you searched for any of these terms, you found the right project:
-
-`claude code go` · `claude code golang` · `claude code alternative` · `claude code open source` · `claude code rewrite` · `claude code port` · `go claude code` · `golang claude code` · `claude code cli golang` · `ai coding agent go` · `ai coding agent golang` · `go ai agent` · `golang ai agent` · `mcp server go` · `mcp server golang` · `mcp golang` · `model context protocol go` · `cursor mcp server go` · `kiro mcp server` · `vscode mcp server golang` · `claude desktop mcp go` · `go ai coding assistant` · `golang ai coding tool` · `claude code go port` · `claude code go version` · `claude code reimplementation` · `open source claude code` · `claude code alternative golang` · `fast ai agent go` · `lightweight ai agent` · `single binary ai agent` · `multi model ai agent` · `gpt4o coding agent` · `gemini coding agent` · `grok coding agent` · `multi agent orchestration go` · `agent fallback chain` · `lsp integration go agent` · `ast grep go` · `mcp client golang` · `ai planning agent` · `agent skills system` · `background agents golang` · `claude code skills` · `ai agent skills` · `coding agent skills golang` · `nothing design system ai` · `website cloner ai agent` · `nextjs best practices agent` · `react performance agent` · `golang best practices agent` · `web design review ai` · `pixel perfect clone agent` · `ai coding assistant terminal` · `claude code go alternative` · `openai agent go` · `gemini agent golang` · `grok agent terminal` · `autonomous coding agent` · `ai pair programmer terminal` · `claude code replacement` · `claude code open source go` · `ai agent with skills` · `domain expert ai agent` · `go ai coding tool cli` · `deepseek coding agent` · `mistral coding agent` · `groq fast inference agent` · `together ai agent` · `openrouter agent` · `ollama coding agent` · `lm studio agent` · `local llm coding agent` · `200 models ai agent` · `multi provider ai agent` · `openai compatible agent` · `azure openai agent go` · `codex backend go` · `provider profiles ai agent`
+`claude code go` · `claude code golang` · `claude code alternative` · `claude code open source` · `ai coding agent go` · `go ai agent` · `mcp server go` · `cursor mcp server go` · `kiro mcp server` · `vscode mcp server golang` · `claude code go port` · `fast ai agent go` · `single binary ai agent` · `multi model ai agent` · `multi agent orchestration go` · `deepseek coding agent` · `groq fast inference agent` · `ollama coding agent` · `local llm coding agent` · `200 models ai agent` · `openai compatible agent` · `claude code replacement` · `ai pair programmer terminal`
 
 ---
 
@@ -501,8 +288,7 @@ MIT — use it, fork it, ship it.
 
 <p align="center">
   <strong>gocode — the Go version of Claude Code. Now a multi-agent operating system.</strong><br/>
-  One binary. Zero dependencies. Instant startup. Any LLM. A team of agents.<br/>
-  This is what an AI coding agent should feel like.
+  One binary. Zero dependencies. Instant startup. Any LLM. A team of agents.
 </p>
 
 <p align="center">
