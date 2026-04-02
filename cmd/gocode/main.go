@@ -45,7 +45,16 @@ import (
 	"github.com/AlleyBo55/gocode/internal/tools"
 )
 
-var version = "v0.6.1"
+var version = "v0.6.2"
+
+// isTerminal checks if stdout is a terminal (not piped).
+func isTerminal() bool {
+	fi, err := os.Stdout.Stat()
+	if err != nil {
+		return false
+	}
+	return fi.Mode()&os.ModeCharDevice != 0
+}
 
 // stdRecoveryLogger logs recovery events to stderr via the standard log package.
 type stdRecoveryLogger struct{}
@@ -535,6 +544,7 @@ func main() {
 			allowedTools, _ := cmd.Flags().GetStringSlice("allowedTools")
 			disallowedTools, _ := cmd.Flags().GetStringSlice("disallowedTools")
 			useTUI, _ := cmd.Flags().GetBool("tui")
+			noTUI, _ := cmd.Flags().GetBool("no-tui")
 			themeName, _ := cmd.Flags().GetString("theme")
 
 			permMode := agent.WorkspaceWrite
@@ -628,7 +638,7 @@ func main() {
 			// Phase 1: wrap runtime with SessionRecoveryManager
 			_ = agent.NewSessionRecoveryManager(rt, sessionStore, stdRecoveryLogger{})
 
-			if useTUI {
+			if (useTUI || !noTUI) && isTerminal() {
 				tui.ApplyTheme(tui.LoadTheme(themeName))
 				return tui.Run(rt, tui.Config{
 					Version:  version,
@@ -658,7 +668,8 @@ func main() {
 	chatCmd.Flags().Bool("no-project-config", false, "Skip loading GOCODE.md/CLAUDE.md")
 	chatCmd.Flags().StringSlice("allowedTools", nil, "Whitelist specific tools")
 	chatCmd.Flags().StringSlice("disallowedTools", nil, "Blacklist specific tools")
-	chatCmd.Flags().Bool("tui", false, "Use bubbletea TUI instead of line-based REPL")
+	chatCmd.Flags().Bool("tui", false, "Force bubbletea TUI mode")
+	chatCmd.Flags().Bool("no-tui", false, "Force line-based REPL mode (disable TUI)")
 	chatCmd.Flags().String("theme", "", "TUI color theme (golang, monokai, dracula, nord)")
 	rootCmd.AddCommand(chatCmd)
 
