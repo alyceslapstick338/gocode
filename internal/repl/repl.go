@@ -94,6 +94,12 @@ func (r *REPL) Run(ctx context.Context) error {
 		// Show spinner while waiting for LLM response
 		fmt.Fprintln(r.writer)
 		spin := NewSpinner(r.writer, "Thinking...")
+
+		// Wire spinner to tool callback so it stops during tool execution
+		if tcb, ok := r.runtime.GetToolCb().(*TerminalToolCallback); ok {
+			tcb.Spinner = spin
+		}
+
 		spin.Start()
 
 		resp, err := r.runtime.SendUserMessage(ctx, input)
@@ -111,13 +117,20 @@ func (r *REPL) Run(ctx context.Context) error {
 	}
 }
 
-// TerminalToolCallback updates the spinner during tool execution.
+// TerminalToolCallback updates the terminal during tool execution.
+// It stops the spinner before showing tool progress.
 type TerminalToolCallback struct {
-	Writer io.Writer
+	Writer  io.Writer
+	Spinner *Spinner
 }
 
 func (t *TerminalToolCallback) OnToolStart(name string, input map[string]interface{}) {
-	fmt.Fprintf(t.Writer, "\r\033[K  %s⚡ Running %s%s...%s\n", cBlue, cWhite+ansiBold, name, ansiReset)
+	if t.Spinner != nil {
+		t.Spinner.Stop()
+	}
+	// Show tool name with key params for visibility
+	summary := summarizeToolInput(name, input)
+	fmt.Fprintf(t.Writer, "  %s⚡ %s%s%s %s\n", cBlue, cWhite+ansiBold, name, ansiReset, summary)
 }
 
 func (t *TerminalToolCallback) OnToolEnd(name string, success bool) {
@@ -126,6 +139,28 @@ func (t *TerminalToolCallback) OnToolEnd(name string, success bool) {
 	} else {
 		fmt.Fprintf(t.Writer, "  %s✗ %s%s\n", cRed, name, ansiReset)
 	}
+	// Restart spinner for the next LLM call
+	if t.Spinner != nil {
+		t.Spinner.Start()
+	}
+}
+
+// summarizeToolInput extracts the most useful param for display.
+func summarizeToolInput(name string, input map[string]interface{}) string {
+	if input == nil {
+		return ""
+	}
+	// Show the most relevant param based on tool type
+	for _, key := range []string{"path", "pattern", "command", "file", "name"} {
+		if v, ok := input[key]; ok {
+			s := fmt.Sprintf("%v", v)
+			if len(s) > 60 {
+				s = s[:57] + "..."
+			}
+			return cGray + s + ansiReset
+		}
+	}
+	return ""
 }
 
 // TerminalPermissionPrompter prompts the user in the terminal for permission.

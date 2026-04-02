@@ -558,6 +558,7 @@ func main() {
 			}
 
 			// Use FallbackProvider (which implements Provider) for the runtime
+			toolCb := &repl.TerminalToolCallback{Writer: os.Stdout}
 			rt := agent.NewConversationRuntime(agent.RuntimeOptions{
 				Provider:      fp,
 				Executor:      executor,
@@ -567,7 +568,7 @@ func main() {
 				SystemPrompt:  systemPrompt,
 				PermMode:      agent.WorkspaceWrite,
 				Prompter:      prompter,
-				ToolCb:        &repl.TerminalToolCallback{Writer: os.Stdout},
+				ToolCb:        toolCb,
 			})
 
 			// Phase 1: wrap runtime with SessionRecoveryManager
