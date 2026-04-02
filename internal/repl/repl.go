@@ -208,7 +208,7 @@ func (r *REPL) Run(ctx context.Context) error {
 				last := strings.TrimSpace(lines[len(lines)-1])
 				msg = "gocode: " + last
 			}
-			msg += "\n\nCo-Authored-By: gocoder6969 <gocoder6969@users.noreply.github.com>"
+			msg += "\n\nCo-Authored-By: gocoder6969 <alleyboss6969@gmail.com>"
 			out, commitErr := exec.Command("git", "commit", "-m", msg).CombinedOutput()
 			if commitErr != nil {
 				fmt.Fprintf(r.writer, "Commit error: %v\n%s\n", commitErr, string(out))
