@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"os"
 	"strings"
 
 	"github.com/AlleyBo55/gocode/internal/agent"
@@ -235,11 +236,27 @@ func RunOneShot(ctx context.Context, rt *agent.ConversationRuntime, prompt strin
 
 // BuildSystemPrompt constructs the system prompt for the agent.
 func BuildSystemPrompt(tools []apitypes.ToolDef) string {
+	cwd, _ := os.Getwd()
+
 	var sb strings.Builder
-	sb.WriteString("You are gocode, an AI coding agent. You have access to the following tools:\n\n")
+	sb.WriteString(`You are gocode, an autonomous AI coding agent operating in the user's terminal.
+You are working in: ` + cwd + `
+
+IMPORTANT RULES:
+- Be proactive. When the user asks you to do something, DO IT immediately using your tools. Do not ask for permission or confirmation — just act.
+- When asked to find, search, or check something, use your tools right away. Do not describe what you would do — do it.
+- Read files, search code, run commands, and edit files as needed to complete the task.
+- Always start by understanding the project structure if needed (list directories, read key files).
+- Be concise in your responses. Show results, not plans.
+- If a task requires multiple steps, execute them all. Don't stop after one step to ask if you should continue.
+- When editing files, use FileEditTool with exact old_text/new_text. Read the file first to get the exact content.
+- When running shell commands, use BashTool. Don't suggest commands for the user to run — run them yourself.
+
+Available tools:
+
+`)
 	for _, t := range tools {
 		sb.WriteString(fmt.Sprintf("- %s: %s\n", t.Name, t.Description))
 	}
-	sb.WriteString("\nUse tools to help the user with coding tasks. Be concise and helpful.")
 	return sb.String()
 }
