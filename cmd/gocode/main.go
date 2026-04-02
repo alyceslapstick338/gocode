@@ -45,7 +45,7 @@ import (
 	"github.com/AlleyBo55/gocode/internal/tools"
 )
 
-var version = "v0.6.2"
+var version = "v0.7.0"
 
 // isTerminal checks if stdout is a terminal (not piped).
 func isTerminal() bool {
