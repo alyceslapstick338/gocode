@@ -31,6 +31,7 @@ import (
 	"github.com/AlleyBo55/gocode/internal/queryengine"
 	"github.com/AlleyBo55/gocode/internal/repl"
 	"github.com/AlleyBo55/gocode/internal/runtime"
+	"github.com/AlleyBo55/gocode/internal/tui"
 	"github.com/AlleyBo55/gocode/internal/session"
 	"github.com/AlleyBo55/gocode/internal/setup"
 	"github.com/AlleyBo55/gocode/internal/skills"
@@ -40,7 +41,7 @@ import (
 	"github.com/AlleyBo55/gocode/internal/tools"
 )
 
-var version = "v0.4.1"
+var version = "v0.5.0"
 
 // stdRecoveryLogger logs recovery events to stderr via the standard log package.
 type stdRecoveryLogger struct{}
@@ -529,6 +530,7 @@ func main() {
 			noProjectConfig, _ := cmd.Flags().GetBool("no-project-config")
 			allowedTools, _ := cmd.Flags().GetStringSlice("allowedTools")
 			disallowedTools, _ := cmd.Flags().GetStringSlice("disallowedTools")
+			useTUI, _ := cmd.Flags().GetBool("tui")
 
 			permMode := agent.WorkspaceWrite
 			if skipPerms {
@@ -621,6 +623,15 @@ func main() {
 			// Phase 1: wrap runtime with SessionRecoveryManager
 			_ = agent.NewSessionRecoveryManager(rt, sessionStore, stdRecoveryLogger{})
 
+			if useTUI {
+				return tui.Run(rt, tui.Config{
+					Version:  version,
+					Model:    resolvedModel,
+					MaxTurns: maxTurns,
+					Skills:   loadedSkills,
+				})
+			}
+
 			r := repl.NewREPL(rt, os.Stdin, os.Stdout, repl.REPLConfig{
 				Version:  version,
 				Model:    resolvedModel,
@@ -641,6 +652,7 @@ func main() {
 	chatCmd.Flags().Bool("no-project-config", false, "Skip loading GOCODE.md/CLAUDE.md")
 	chatCmd.Flags().StringSlice("allowedTools", nil, "Whitelist specific tools")
 	chatCmd.Flags().StringSlice("disallowedTools", nil, "Blacklist specific tools")
+	chatCmd.Flags().Bool("tui", false, "Use bubbletea TUI instead of line-based REPL")
 	rootCmd.AddCommand(chatCmd)
 
 	// 23. prompt — one-shot agent mode
