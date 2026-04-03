@@ -225,25 +225,6 @@ No Python. No Node. No virtual environments. One binary, one env var, go.
 
 ---
 
-## The Numbers
-
-| Metric | Claude Code (Python) | gocode (Go) |
-|--------|---------------------|-------------|
-| Startup time | ~200ms | **<10ms** (20× faster) |
-| Binary size | N/A (interpreted) | **~12MB** (single file) |
-| Runtime dependencies | Python 3.10+, pip, venv | **None** |
-| LLM providers | Claude only | **200+ models, 11 providers** |
-| Deployment | `pip install` + virtualenv | **Copy one file** |
-| Concurrency | asyncio / threading | **Goroutines + channels** |
-| MCP compliance | N/A | **Full specification** |
-| IDE integrations | N/A | **5 IDEs** |
-| Multi-agent | No | **Yes (4 profiles, 5 concurrent)** |
-| Model fallback | No | **Yes (automatic failover)** |
-| Skills system | No | **Yes (8 built-in + custom)** |
-| Web search | No | **Yes (built-in, no API key)** |
-| Persistent memory | No | **Yes (cross-session)** |
-
----
 
 ## Documentation
 
