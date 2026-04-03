@@ -181,15 +181,44 @@ type StreamEvent struct {
 	// MessageStart
 	Message *MessageResponse `json:"message,omitempty"`
 
-	// MessageDelta
-	Delta      *DeltaPayload `json:"delta,omitempty"`
-	DeltaUsage *Usage        `json:"usage,omitempty"`
+	// MessageDelta + ContentBlockDelta both use "delta" key
+	Delta      *DeltaPayload      `json:"-"`
+	DeltaUsage *Usage             `json:"usage,omitempty"`
+	BlockDelta *ContentBlockDelta `json:"-"`
 
 	// ContentBlockStart
 	ContentBlock *OutputContentBlock `json:"content_block,omitempty"`
 
-	// ContentBlockDelta
-	BlockDelta *ContentBlockDelta `json:"block_delta,omitempty"`
+	// RawDelta captures the "delta" field for both message_delta and content_block_delta
+	RawDelta json.RawMessage `json:"delta,omitempty"`
+}
+
+// UnmarshalJSON custom unmarshals to handle the shared "delta" field.
+func (e *StreamEvent) UnmarshalJSON(data []byte) error {
+	// Use an alias to avoid infinite recursion
+	type Alias StreamEvent
+	aux := &struct {
+		*Alias
+	}{Alias: (*Alias)(e)}
+	if err := json.Unmarshal(data, aux); err != nil {
+		return err
+	}
+
+	if len(e.RawDelta) > 0 {
+		switch e.Kind {
+		case "content_block_delta":
+			var bd ContentBlockDelta
+			if err := json.Unmarshal(e.RawDelta, &bd); err == nil {
+				e.BlockDelta = &bd
+			}
+		case "message_delta":
+			var dp DeltaPayload
+			if err := json.Unmarshal(e.RawDelta, &dp); err == nil {
+				e.Delta = &dp
+			}
+		}
+	}
+	return nil
 }
 
 // DeltaPayload carries stop_reason in message_delta events.

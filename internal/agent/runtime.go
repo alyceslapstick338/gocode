@@ -168,6 +168,14 @@ func (r *ConversationRuntime) streamLoop(ctx context.Context) (<-chan apitypes.S
 			req := r.buildRequest()
 			eventCh, err := r.provider.StreamMessage(ctx, req)
 			if err != nil {
+				// Send an error event so the REPL can display it
+				outCh <- apitypes.StreamEvent{
+					Kind: "error",
+					BlockDelta: &apitypes.ContentBlockDelta{
+						Kind: "text_delta",
+						Text: "Error: " + err.Error(),
+					},
+				}
 				return
 			}
 

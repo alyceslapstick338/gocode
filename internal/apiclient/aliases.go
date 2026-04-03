@@ -24,7 +24,7 @@ const (
 
 // modelAliases maps short names to full model identifiers.
 var modelAliases = map[string]string{
-	// Anthropic Claude (2026)
+	// Anthropic Claude (2025)
 	"opus":   "claude-opus-4-6",
 	"sonnet": "claude-sonnet-4-6",
 	"haiku":  "claude-haiku-4-5-20251213",
