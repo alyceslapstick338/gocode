@@ -486,10 +486,20 @@ func (r *REPL) Run(ctx context.Context) error {
 
 		firstToken := true
 		for ev := range eventCh {
-			if firstToken && ev.Kind == "content_block_delta" && ev.BlockDelta != nil && ev.BlockDelta.Kind == "text_delta" {
+			if ev.Kind == "error" && ev.BlockDelta != nil {
 				spin.Stop()
-				fmt.Fprintf(r.writer, "%sassistant>%s ", cBlue+ansiBold, ansiReset)
+				fmt.Fprintf(r.writer, "%s%s%s\n", cRed, ev.BlockDelta.Text, ansiReset)
 				firstToken = false
+				continue
+			}
+			if firstToken {
+				isText := (ev.Kind == "content_block_delta" && ev.BlockDelta != nil && ev.BlockDelta.Kind == "text_delta")
+				isTextStart := (ev.Kind == "content_block_start" && ev.ContentBlock != nil && ev.ContentBlock.Kind == "text")
+				if isText || isTextStart {
+					spin.Stop()
+					fmt.Fprintf(r.writer, "%sassistant>%s ", cBlue+ansiBold, ansiReset)
+					firstToken = false
+				}
 			}
 			r.display.StreamEvent(ev)
 		}
@@ -1162,4 +1172,12 @@ If the first search doesn't give a clear answer, you MUST search again with a di
 	}
 
 	return sb.String()
+}
+
+// truncateLog truncates a string for log output.
+func truncateLog(s string, max int) string {
+	if len(s) <= max {
+		return s
+	}
+	return s[:max] + "..."
 }
