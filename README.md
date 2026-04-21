@@ -107,6 +107,7 @@ Every model. Every provider. One binary. No lock-in.
 | **Mistral** | Mistral Large, Codestral, Pixtral | `MISTRAL_API_KEY` |
 | **Groq** | Llama 3.3 70B at 800 tok/s | `GROQ_API_KEY` |
 | **Together AI** | Llama 405B, Qwen 72B Turbo | `TOGETHER_API_KEY` |
+| **Novita AI** | Llama 3.3 70B, DeepSeek V3/R1, Qwen 2.5 | `NOVITA_API_KEY` |
 | **OpenRouter** | 200+ models, one API key | `OPENROUTER_API_KEY` |
 | **Azure OpenAI** | Enterprise GPT deployments | `AZURE_OPENAI_API_KEY` |
 | **Local (Ollama/LM Studio)** | Run any model on your machine | `OPENAI_BASE_URL` |

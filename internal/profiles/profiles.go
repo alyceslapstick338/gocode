@@ -76,6 +76,9 @@ func AutoDetect(goal string) Profile {
 	case envSet("MISTRAL_API_KEY"):
 		p.Provider = "mistral"
 		p.Model = "mistral-large-latest"
+	case envSet("NOVITA_API_KEY"):
+		p.Provider = "novita"
+		p.Model = "meta-llama/llama-3.3-70b-instruct"
 	case envSet("OPENAI_BASE_URL"):
 		p.Provider = "local"
 		p.Model = "llama3.3:70b"

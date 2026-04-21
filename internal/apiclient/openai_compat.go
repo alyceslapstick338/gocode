@@ -45,10 +45,14 @@ func NewOpenAiCompatProvider(config OpenAiCompatConfig, auth apitypes.AuthSource
 }
 
 func (p *OpenAiCompatProvider) Kind() ProviderKind {
-	if p.Config.ProviderName == "xAI" {
+	switch p.Config.ProviderName {
+	case "xAI":
 		return ProviderXai
+	case "Novita AI":
+		return ProviderNovita
+	default:
+		return ProviderOpenAi
 	}
-	return ProviderOpenAi
 }
 
 // SendMessage sends a non-streaming request, translating to/from OpenAI format.
@@ -152,6 +156,12 @@ func (p *OpenAiCompatProvider) sendWithRetry(ctx context.Context, req apitypes.M
 }
 
 func (p *OpenAiCompatProvider) sendRaw(ctx context.Context, req apitypes.MessageRequest) (*http.Response, error) {
+	// Some proxy providers enforce tighter max_tokens ceilings than the model's
+	// native limit (Novita rejects >8192 with 400 INVALID_REQUEST_BODY). Cap
+	// here so fallback paths and any future callers are protected.
+	if cap := ProviderMaxTokensCap(p.Kind()); cap > 0 && req.MaxTokens > cap {
+		req.MaxTokens = cap
+	}
 	payload := buildChatCompletionRequest(req)
 	body, err := json.Marshal(payload)
 	if err != nil {

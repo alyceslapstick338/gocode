@@ -20,6 +20,7 @@ const (
 	ProviderAzure
 	ProviderDeepSeek
 	ProviderCodex
+	ProviderNovita
 )
 
 // modelAliases maps short names to full model identifiers.
@@ -70,8 +71,8 @@ var modelAliases = map[string]string{
 	"llama-70b": "llama3.3:70b",
 	"llama-405": "meta-llama/Meta-Llama-3.1-405B-Instruct-Turbo",
 	// Qwen (via Ollama / Together)
-	"qwen":      "qwen2.5:72b",
-	"qwen-coder":"qwen2.5-coder:32b",
+	"qwen":       "qwen2.5:72b",
+	"qwen-coder": "qwen2.5-coder:32b",
 	// Cohere
 	"command-r":      "command-r-plus",
 	"command-r-plus": "command-r-plus",
@@ -87,6 +88,16 @@ var modelAliases = map[string]string{
 	"groq-llama":   "llama-3.3-70b-versatile",
 	"groq-mixtral": "mixtral-8x7b-32768",
 	"groq-gemma":   "gemma2-9b-it",
+	// Novita AI popular (OpenAI-compatible; full IDs are served as-is)
+	"novita-llama":       "meta-llama/llama-3.3-70b-instruct",
+	"novita-llama-8b":    "meta-llama/llama-3.1-8b-instruct",
+	"novita-llama-405":   "meta-llama/llama-3.1-405b-instruct",
+	"novita-deepseek":    "deepseek/deepseek_v3",
+	"novita-deepseek-r1": "deepseek/deepseek-r1",
+	"novita-qwen":        "qwen/qwen-2.5-72b-instruct",
+	"novita-qwen-coder":  "qwen/qwen-2.5-coder-32b-instruct",
+	"novita-mistral":     "mistralai/mistral-nemo",
+	"novita-gemma-4":     "google/gemma-4-31b-it",
 }
 
 // proxyProviderConfigs maps proxy provider kinds to their OpenAI-compat configs.
@@ -103,6 +114,7 @@ var proxyProviderConfigs = map[ProviderKind]struct {
 	ProviderDeepSeek:   {"DeepSeek", "DEEPSEEK_BASE_URL", "https://api.deepseek.com/v1", "DEEPSEEK_API_KEY"},
 	ProviderAzure:      {"Azure OpenAI", "AZURE_OPENAI_ENDPOINT", "", "AZURE_OPENAI_API_KEY"},
 	ProviderCodex:      {"Codex", "CODEX_BASE_URL", "https://api.openai.com/v1", ""},
+	ProviderNovita:     {"Novita AI", "NOVITA_BASE_URL", "https://api.novita.ai/v3/openai", "NOVITA_API_KEY"},
 }
 
 // ResolveModelAlias maps short names to full model identifiers.
@@ -174,8 +186,16 @@ func DetectProviderKind(model string) ProviderKind {
 			return ProviderGroq
 		}
 	}
+	// Novita via explicit alias prefix (e.g. "novita-llama") wins over OpenRouter.
+	if strings.HasPrefix(strings.ToLower(strings.TrimSpace(model)), "novita-") && envNonEmpty("NOVITA_API_KEY") {
+		return ProviderNovita
+	}
 	if strings.Contains(resolved, "/") && envNonEmpty("OPENROUTER_API_KEY") {
 		return ProviderOpenRouter
+	}
+	// Fallback: slash-form model with only NOVITA_API_KEY set → Novita.
+	if strings.Contains(resolved, "/") && envNonEmpty("NOVITA_API_KEY") {
+		return ProviderNovita
 	}
 
 	// Native provider detection
@@ -216,6 +236,9 @@ func DetectProviderKind(model string) ProviderKind {
 	if envNonEmpty("GROQ_API_KEY") {
 		return ProviderGroq
 	}
+	if envNonEmpty("NOVITA_API_KEY") {
+		return ProviderNovita
+	}
 	return ProviderAnthropic
 }
 
@@ -254,6 +277,31 @@ func MaxTokensForModel(model string) int {
 	default:
 		return 16384
 	}
+}
+
+// ProviderMaxTokensCap returns an upper bound on max_tokens enforced by the
+// provider itself, independent of what the model natively supports. Returns 0
+// when the provider does not impose a tighter cap than the model's own limit.
+//
+// Novita caps output at 8192 tokens across most hosted models; sending more
+// returns a 400 INVALID_REQUEST_BODY.
+func ProviderMaxTokensCap(kind ProviderKind) int {
+	switch kind {
+	case ProviderNovita:
+		return 8192
+	default:
+		return 0
+	}
+}
+
+// MaxTokensForProvider returns the max output tokens for a model, clamped by
+// any provider-specific ceiling.
+func MaxTokensForProvider(kind ProviderKind, model string) int {
+	n := MaxTokensForModel(model)
+	if cap := ProviderMaxTokensCap(kind); cap > 0 && n > cap {
+		return cap
+	}
+	return n
 }
 
 // ContextWindowForModel returns the context window size (input tokens) for a model.
