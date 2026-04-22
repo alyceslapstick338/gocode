@@ -131,6 +131,30 @@ export TOGETHER_API_KEY=...
 gocode chat --model together-llama
 ```
 
+### Novita AI
+
+OpenAI-compatible proxy with Llama, DeepSeek, Qwen, and Mistral hosts.
+
+| Model | Alias | Full ID |
+|-------|-------|---------|
+| Llama 3.3 70B Instruct | `novita-llama` | `meta-llama/llama-3.3-70b-instruct` |
+| Llama 3.1 8B Instruct | `novita-llama-8b` | `meta-llama/llama-3.1-8b-instruct` |
+| Llama 3.1 405B Instruct | `novita-llama-405` | `meta-llama/llama-3.1-405b-instruct` |
+| DeepSeek V3 | `novita-deepseek` | `deepseek/deepseek_v3` |
+| DeepSeek R1 | `novita-deepseek-r1` | `deepseek/deepseek-r1` |
+| Qwen 2.5 72B Instruct | `novita-qwen` | `qwen/qwen-2.5-72b-instruct` |
+| Qwen 2.5 Coder 32B | `novita-qwen-coder` | `qwen/qwen-2.5-coder-32b-instruct` |
+| Mistral Nemo | `novita-mistral` | `mistralai/mistral-nemo` |
+
+```bash
+export NOVITA_API_KEY=...
+gocode chat --model novita-llama
+# Or pass any Novita-hosted model ID directly:
+gocode chat --model qwen/qwen-2.5-72b-instruct
+```
+
+Override the endpoint with `NOVITA_BASE_URL` if needed (default `https://api.novita.ai/v3/openai`).
+
 ### OpenRouter (200+ Models)
 
 OpenRouter gives you access to every model from every provider through a single API key. Pass any model ID from [openrouter.ai/models](https://openrouter.ai/models).
@@ -255,6 +279,7 @@ gocode chat --goal balanced   # picks a balanced option
 | `MISTRAL_API_KEY` | Mistral | For Mistral/Codestral |
 | `GROQ_API_KEY` | Groq | For Groq-hosted models |
 | `TOGETHER_API_KEY` | Together AI | For Together-hosted models |
+| `NOVITA_API_KEY` | Novita AI | For Novita-hosted models |
 | `OPENROUTER_API_KEY` | OpenRouter | For any OpenRouter model |
 | `AZURE_OPENAI_API_KEY` | Azure OpenAI | For Azure deployments |
 | `AZURE_OPENAI_ENDPOINT` | Azure OpenAI | Azure resource URL |

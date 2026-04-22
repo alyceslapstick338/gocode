@@ -11,22 +11,22 @@ import (
 	"os/exec"
 	"os/signal"
 	"path/filepath"
-	"syscall"
 	"strconv"
 	"strings"
+	"syscall"
 
 	"github.com/spf13/cobra"
 
 	"github.com/AlleyBo55/gocode/data"
 	"github.com/AlleyBo55/gocode/internal/agent"
-	"github.com/AlleyBo55/gocode/internal/apiserver"
 	"github.com/AlleyBo55/gocode/internal/apiclient"
-	"github.com/AlleyBo55/gocode/internal/bridge"
-	"github.com/AlleyBo55/gocode/internal/buddy"
+	"github.com/AlleyBo55/gocode/internal/apiserver"
 	"github.com/AlleyBo55/gocode/internal/apitypes"
 	"github.com/AlleyBo55/gocode/internal/astgrep"
 	"github.com/AlleyBo55/gocode/internal/authkeys"
 	"github.com/AlleyBo55/gocode/internal/bootstrap"
+	"github.com/AlleyBo55/gocode/internal/bridge"
+	"github.com/AlleyBo55/gocode/internal/buddy"
 	"github.com/AlleyBo55/gocode/internal/commandgraph"
 	"github.com/AlleyBo55/gocode/internal/commands"
 	"github.com/AlleyBo55/gocode/internal/cron"
@@ -37,8 +37,8 @@ import (
 	"github.com/AlleyBo55/gocode/internal/initdeep"
 	"github.com/AlleyBo55/gocode/internal/manifest"
 	"github.com/AlleyBo55/gocode/internal/mcp"
-	"github.com/AlleyBo55/gocode/internal/migrations"
 	"github.com/AlleyBo55/gocode/internal/mcpclient"
+	"github.com/AlleyBo55/gocode/internal/migrations"
 	"github.com/AlleyBo55/gocode/internal/modes"
 	"github.com/AlleyBo55/gocode/internal/orchestrator"
 	"github.com/AlleyBo55/gocode/internal/permissions"
@@ -47,16 +47,16 @@ import (
 	"github.com/AlleyBo55/gocode/internal/queryengine"
 	"github.com/AlleyBo55/gocode/internal/repl"
 	"github.com/AlleyBo55/gocode/internal/runtime"
-	"github.com/AlleyBo55/gocode/internal/structout"
-	"github.com/AlleyBo55/gocode/internal/swarm"
-	"github.com/AlleyBo55/gocode/internal/tui"
 	"github.com/AlleyBo55/gocode/internal/session"
 	"github.com/AlleyBo55/gocode/internal/setup"
 	"github.com/AlleyBo55/gocode/internal/skills"
+	"github.com/AlleyBo55/gocode/internal/structout"
+	"github.com/AlleyBo55/gocode/internal/swarm"
 	"github.com/AlleyBo55/gocode/internal/tmux"
 	"github.com/AlleyBo55/gocode/internal/toolimpl"
 	"github.com/AlleyBo55/gocode/internal/toolpool"
 	"github.com/AlleyBo55/gocode/internal/tools"
+	"github.com/AlleyBo55/gocode/internal/tui"
 	"github.com/AlleyBo55/gocode/internal/worktree"
 )
 
@@ -675,7 +675,7 @@ func main() {
 
 			// After resolving the model, set model-aware max tokens if user didn't override
 			if !cmd.Flags().Changed("max-tokens") {
-				maxTokens = apiclient.MaxTokensForModel(resolvedModel)
+				maxTokens = apiclient.MaxTokensForProvider(provider.Kind(), resolvedModel)
 			}
 
 			// Phase 1: wrap provider with FallbackProvider and ModelRouter
@@ -943,7 +943,7 @@ func main() {
 			}
 			for _, env := range []string{"ANTHROPIC_API_KEY", "OPENAI_API_KEY", "GEMINI_API_KEY", "XAI_API_KEY",
 				"OPENROUTER_API_KEY", "TOGETHER_API_KEY", "GROQ_API_KEY", "DEEPSEEK_API_KEY", "MISTRAL_API_KEY",
-				"AZURE_OPENAI_API_KEY"} {
+				"NOVITA_API_KEY", "AZURE_OPENAI_API_KEY"} {
 				if os.Getenv(env) != "" {
 					fmt.Printf("  ✓ %s: set\n", env)
 				} else {
@@ -1074,7 +1074,7 @@ func main() {
 
 			// After resolving the model, set model-aware max tokens if user didn't override
 			if !cmd.Flags().Changed("max-tokens") {
-				maxTokens = apiclient.MaxTokensForModel(resolvedModel)
+				maxTokens = apiclient.MaxTokensForProvider(provider.Kind(), resolvedModel)
 			}
 
 			// Phase 1: wrap provider with FallbackProvider and ModelRouter
